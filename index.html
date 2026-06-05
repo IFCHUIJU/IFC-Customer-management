@@ -1,0 +1,554 @@
+<!DOCTYPE html>
+<html lang="ko">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>클라우드 고객관리 시스템</title>
+    
+    <!-- PWA 설정 -->
+    <link rel="manifest" href="manifest.json">
+    <meta name="theme-color" content="#4f46e5">
+    <meta name="apple-mobile-web-app-capable" content="yes">
+    <meta name="apple-mobile-web-app-status-bar-style" content="default">
+    <meta name="apple-mobile-web-app-title" content="고객관리">
+    <link class="apple-touch-icon" href="https://cdn-icons-png.flaticon.com/512/9485/9485945.png">
+
+    <!-- Tailwind CSS & FontAwesome -->
+    <script src="https://cdn.jsdelivr.net/npm/@tailwindcss/browser@4"></script>
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
+</head>
+<body class="bg-slate-100 min-h-screen p-4 md:p-8 font-sans">
+
+    <!-- [1] 로그인 / 회원가입 화면 -->
+    <div id="authContainer" class="max-w-md mx-auto my-12 bg-white p-8 rounded-2xl shadow-md border border-slate-200">
+        <div class="text-center mb-6">
+            <i class="fa-solid fa-users-gear text-4xl text-indigo-600 mb-2"></i>
+            <h2 class="text-2xl font-black text-slate-800">고객관리 로그인</h2>
+            <p class="text-xs text-slate-400 mt-1">이메일과 비밀번호로 간편하게 동기화하세요.</p>
+        </div>
+        <form id="authForm" class="space-y-4">
+            <div>
+                <label class="block text-sm font-semibold text-slate-600 mb-1">이메일 주소</label>
+                <input type="email" id="authEmail" required class="w-full px-4 py-2.5 rounded-xl border border-slate-200 focus:outline-none focus:border-indigo-500 text-slate-700">
+            </div>
+            <div>
+                <label class="block text-sm font-semibold text-slate-600 mb-1">비밀번호 (6자리 이상)</label>
+                <input type="password" id="authPassword" required class="w-full px-4 py-2.5 rounded-xl border border-slate-200 focus:outline-none focus:border-indigo-500 text-slate-700">
+            </div>
+            <div class="flex gap-2 pt-2">
+                <button type="button" id="btnLogin" class="flex-1 bg-indigo-600 hover:bg-indigo-700 text-white font-bold py-3 rounded-xl transition shadow-xs text-sm">로그인</button>
+                <button type="button" id="btnSignUp" class="flex-1 bg-slate-200 hover:bg-slate-300 text-slate-700 font-bold py-3 rounded-xl transition text-sm">회원가입</button>
+            </div>
+        </form>
+    </div>
+
+    <!-- [2] 메인 앱 화면 -->
+    <div id="appContainer" class="max-w-3xl mx-auto hidden">
+        <!-- 헤더 및 로그아웃 -->
+        <header class="mb-6 flex flex-col sm:flex-row justify-between items-center gap-3">
+            <div class="inline-flex items-center justify-center gap-2.5">
+                <h1 class="text-3xl font-black text-slate-800">
+                    <i class="fa-solid fa-users-gear text-indigo-600 mr-1"></i>고객관리 시스템
+                </h1>
+                <span id="titleAlertBadge" onclick="switchTab('alerts')" class="hidden bg-red-500 text-white text-xs font-extrabold px-2.5 py-1 rounded-full animate-bounce shadow-md cursor-pointer hover:bg-red-600 transition">
+                    알림(<span id="titleAlertCount">0</span>)
+                </span>
+            </div>
+            <div class="flex items-center gap-2">
+                <span id="userEmailDisplay" class="text-xs text-slate-500 font-medium bg-slate-200 px-3 py-1.5 rounded-full">로그인 중</span>
+                <button id="btnLogout" class="text-xs bg-red-50 text-red-600 hover:bg-red-100 px-3 py-1.5 rounded-full font-bold transition">로그아웃</button>
+            </div>
+        </header>
+
+        <!-- 상단 3단 탭 메뉴 -->
+        <div class="flex bg-white rounded-xl p-1.5 shadow-xs border border-slate-200 mb-6 gap-1">
+            <button id="tabBtnRegister" onclick="switchTab('register')" class="flex-1 py-3 text-center font-bold rounded-lg transition duration-150 bg-indigo-600 text-white shadow-xs">
+                <i class="fa-solid fa-user-plus mr-1"></i> 고객 등록
+            </button>
+            <button id="tabBtnList" onclick="switchTab('list')" class="flex-1 py-3 text-center font-bold rounded-lg transition duration-150 text-slate-500 hover:text-slate-800">
+                <i class="fa-solid fa-list mr-1"></i> 고객 목록 
+                <span id="tabCount" class="bg-slate-100 text-slate-600 px-2 py-0.5 rounded-full text-xs ml-1 font-bold">0</span>
+            </button>
+            <button id="tabBtnAlerts" onclick="switchTab('alerts')" class="flex-1 py-3 text-center font-bold rounded-lg transition duration-150 text-slate-500 hover:text-slate-800 flex justify-center items-center gap-1">
+                <i class="fa-solid fa-bell mr-1"></i> 중요 알림
+                <span id="tabAlertCount" class="px-2 py-0.5 rounded-full text-xs font-bold hidden">0</span>
+            </button>
+        </div>
+
+        <!-- 1번 탭: 고객 등록/수정 -->
+        <div id="tabContentRegister" class="bg-white p-6 rounded-2xl shadow-sm border border-slate-200">
+            <h2 id="formTitle" class="text-xl font-bold text-slate-800 mb-4"><i class="fa-solid fa-square-plus text-indigo-500 mr-2"></i>신규 고객 등록</h2>
+            <form id="customerForm" class="space-y-4">
+                <div class="grid grid-cols-1 md:grid-cols-2 gap-4">
+                    <div>
+                        <label class="block text-sm font-semibold text-slate-600 mb-1">고객명 *</label>
+                        <input type="text" id="name" required class="w-full px-4 py-2.5 rounded-xl border border-slate-200 focus:outline-none focus:border-indigo-500 text-slate-700">
+                    </div>
+                    <div>
+                        <label class="block text-sm font-semibold text-slate-600 mb-1">생년월일</label>
+                        <input type="text" id="birthdate" maxlength="10" placeholder="예: 1990-05-15" class="w-full px-4 py-2.5 rounded-xl border border-slate-200 focus:outline-none focus:border-indigo-500 text-slate-700">
+                    </div>
+                </div>
+                <div>
+                    <label class="block text-sm font-semibold text-slate-600 mb-1">연락처</label>
+                    <input type="tel" id="phone" maxlength="13" placeholder="예: 010-1234-5678" class="w-full px-4 py-2.5 rounded-xl border border-slate-200 focus:outline-none focus:border-indigo-500 text-slate-700">
+                </div>
+                <div class="grid grid-cols-1 md:grid-cols-2 gap-4 pt-2 border-t border-slate-100">
+                    <div>
+                        <label class="block text-sm font-semibold text-slate-600 mb-1">보험사</label>
+                        <input type="text" id="company" placeholder="예: OO화재, OO생명" class="w-full px-4 py-2.5 rounded-xl border border-slate-200 focus:outline-none focus:border-indigo-500 text-slate-700">
+                    </div>
+                    <div>
+                        <label class="block text-sm font-semibold text-slate-600 mb-1">가입종류</label>
+                        <select id="insuranceType" class="w-full px-4 py-2.5 rounded-xl border border-slate-200 focus:outline-none focus:border-indigo-500 text-slate-700 bg-white">
+                            <option value="실손">실손보험</option>
+                            <option value="운전자">운전자보험</option>
+                            <option value="건강보험">건강보험</option>
+                            <option value="종신보험">종신보험</option>
+                            <option value="화재보험">화재보험</option>
+                            <option value="자동차보험">자동차보험</option>
+                        </select>
+                    </div>
+                </div>
+                <div class="grid grid-cols-1 md:grid-cols-3 gap-4">
+                    <div>
+                        <label class="block text-sm font-semibold text-slate-600 mb-1">상품 구분</label>
+                        <select id="renewalType" onchange="updatePayPeriodLabel()" class="w-full px-4 py-2.5 rounded-xl border border-slate-200 focus:outline-none focus:border-indigo-500 text-slate-700 bg-white">
+                            <option value="비갱신">비갱신형</option>
+                            <option value="갱신">갱신형</option>
+                        </select>
+                    </div>
+                    <div>
+                        <label id="payPeriodLabel" class="block text-sm font-semibold text-slate-600 mb-1">납입기간 (년 단위)</label>
+                        <input type="number" id="payPeriod" min="1" max="100" placeholder="예: 20" class="w-full px-4 py-2.5 rounded-xl border border-slate-200 focus:outline-none focus:border-indigo-500 text-slate-700">
+                    </div>
+                    <div>
+                        <label class="block text-sm font-semibold text-slate-600 mb-1">보험가입일 *</label>
+                        <input type="text" id="baseDate" maxlength="10" placeholder="예: 2026-06-04" required class="w-full px-4 py-2.5 rounded-xl border border-slate-200 focus:outline-none focus:border-indigo-500 text-slate-700">
+                    </div>
+                </div>
+                <div>
+                    <label class="block text-sm font-semibold text-slate-600 mb-1">비고</label>
+                    <input type="text" id="remarks" placeholder="특이사항을 간단히 적어주세요." class="w-full px-4 py-2.5 rounded-xl border border-slate-200 focus:outline-none focus:border-indigo-500 text-slate-700">
+                </div>
+                <button type="submit" id="submitBtn" class="w-full bg-indigo-600 hover:bg-indigo-700 text-white font-bold py-3 rounded-xl transition shadow-md">고객 저장하기</button>
+            </form>
+        </div>
+
+        <!-- 2번 탭: 고객 목록 -->
+        <div id="tabContentList" class="bg-white p-6 rounded-2xl shadow-sm border border-slate-200 hidden">
+            <div class="flex justify-between items-center mb-4">
+                <h2 class="text-xl font-bold text-slate-800"><i class="fa-solid fa-address-book text-indigo-500 mr-2"></i>고객목록</h2>
+                <span id="totalCount" class="bg-indigo-50 text-indigo-600 px-3 py-1 rounded-full text-sm font-bold">총 0명</span>
+            </div>
+            <div class="mb-5 relative">
+                <input type="text" id="searchKeyword" placeholder="고객명, 연락처, 보험사, 비고 등으로 검색..." class="w-full pl-10 pr-4 py-2.5 rounded-xl border border-slate-200 focus:outline-none focus:border-indigo-500 text-slate-700 text-sm bg-slate-50">
+                <i class="fa-solid fa-magnifying-glass absolute left-3.5 top-3.5 text-slate-400 text-sm"></i>
+            </div>
+            <div id="customerList" class="space-y-5 max-h-[630px] overflow-y-auto pr-2"></div>
+        </div>
+
+        <!-- 3번 탭: 중요 알림 -->
+        <div id="tabContentAlerts" class="bg-white p-6 rounded-2xl shadow-sm border border-slate-200 hidden">
+            <h2 class="text-xl font-bold text-slate-800 mb-4"><i class="fa-solid fa-bell text-amber-500 mr-2"></i>오늘의 중요 알림 목록</h2>
+            <div id="alertEmptyMessage" class="text-center text-slate-400 py-12">
+                <i class="fa-solid fa-calendar-check text-4xl mb-3 text-slate-300 block"></i>오늘 예정된 중요 알림이 없습니다.
+            </div>
+            <ul id="tabAlertsList" class="space-y-3 hidden"></ul>
+        </div>
+    </div>
+
+    <!-- Firebase SDK 연결 -->
+    <script type="module">
+        import { initializeApp } from "https://www.gstatic.com/firebasejs/10.12.0/firebase-app.js";
+        import { getAuth, signInWithEmailAndPassword, createUserWithEmailAndPassword, signOut, onAuthStateChanged } from "https://www.gstatic.com/firebasejs/10.12.0/firebase-auth.js";
+        import { getFirestore, collection, addDoc, updateDoc, deleteDoc, doc, onSnapshot, query, where } from "https://www.gstatic.com/firebasejs/10.12.0/firebase-firestore.js";
+
+        // 파이어베이스 설정값 유지
+        const firebaseConfig = {
+            apiKey: "AIzaSyBNp-ZFEUjF_QoYG7OaEWB234-hC8hj8Fc",
+            authDomain: "my-crm-app-f9628.firebaseapp.com",
+            projectId: "my-crm-app-f9628",
+            storageBucket: "my-crm-app-f9628.firebasestorage.app",
+            messagingSenderId: "944641343634",
+            appId: "1:944641343634:web:3a7f5c432dadbea7cba64b",
+            measurementId: "G-VGPM9RP9L2"
+        };
+
+        const app = initializeApp(firebaseConfig);
+        const auth = getAuth(app);
+        const db = getFirestore(app);
+
+        let currentUser = null;
+        let customers = [];
+        let editId = null;
+
+        if ('serviceWorker' in navigator) {
+            window.addEventListener('load', () => { navigator.serviceWorker.register('sw.js').catch(err => console.log(err)); });
+        }
+
+        const authContainer = document.getElementById('authContainer');
+        const appContainer = document.getElementById('appContainer');
+
+        onAuthStateChanged(auth, (user) => {
+            if (user) {
+                currentUser = user;
+                authContainer.classList.add('hidden');
+                appContainer.classList.remove('hidden');
+                document.getElementById('userEmailDisplay').innerText = `${user.email}`;
+                initRealtimeDatabase(user.uid);
+            } else {
+                currentUser = null;
+                authContainer.classList.remove('hidden');
+                appContainer.classList.add('hidden');
+            }
+        });
+
+        document.getElementById('btnLogin').addEventListener('click', () => {
+            const email = document.getElementById('authEmail').value;
+            const password = document.getElementById('authPassword').value;
+            signInWithEmailAndPassword(auth, email, password).catch(err => alert('로그인 실패: 이메일 또는 비밀번호를 확인하세요.'));
+        });
+
+        document.getElementById('btnSignUp').addEventListener('click', () => {
+            const email = document.getElementById('authEmail').value;
+            const password = document.getElementById('authPassword').value;
+            if(confirm('이 정보로 새 계정을 만드시겠습니까?')) {
+                createUserWithEmailAndPassword(auth, email, password)
+                    .then(() => alert('회원가입 및 로그인 성공!'))
+                    .catch(err => alert('회원가입 실패: ' + err.message));
+            }
+        });
+
+        document.getElementById('btnLogout').addEventListener('click', () => { signOut(auth); });
+
+        function initRealtimeDatabase(uid) {
+            const q = query(collection(db, "customers"), where("uid", "==", uid));
+            onSnapshot(q, (snapshot) => {
+                customers = [];
+                snapshot.forEach((doc) => {
+                    customers.push({ id: doc.id, ...doc.data() });
+                });
+                renderCustomers();
+                calculateAndRenderAlertsPage();
+            });
+        }
+
+        window.switchTab = function(tab) {
+            const tabs = ['register', 'list', 'alerts'];
+            tabs.forEach(t => {
+                const btn = document.getElementById('tabBtn' + t.charAt(0).toUpperCase() + t.slice(1));
+                const content = document.getElementById('tabContent' + t.charAt(0).toUpperCase() + t.slice(1));
+                if (t === tab) {
+                    btn.className = "flex-1 py-3 text-center font-bold rounded-lg transition duration-150 bg-indigo-600 text-white shadow-xs flex justify-center items-center gap-1";
+                    content.classList.remove('hidden');
+                } else {
+                    btn.className = "flex-1 py-3 text-center font-bold rounded-lg transition duration-150 text-slate-500 hover:text-slate-800 flex justify-center items-center gap-1";
+                    content.classList.add('hidden');
+                }
+            });
+            if (tab === 'register' && editId === null) resetFormState();
+            if (tab === 'list') renderCustomers();
+            if (tab === 'alerts') calculateAndRenderAlertsPage();
+        }
+
+        window.updatePayPeriodLabel = function() {
+            const renewalType = document.getElementById('renewalType').value;
+            const label = document.getElementById('payPeriodLabel');
+            const input = document.getElementById('payPeriod');
+            if (renewalType === '갱신') {
+                label.innerText = '갱신주기 (년 단위 숫자)';
+                input.placeholder = '예: 3 (3년 갱신)';
+            } else {
+                label.innerText = '납입기간 (년 단위 숫자)';
+                input.placeholder = '예: 20 (20년납)';
+            }
+        }
+
+        window.editCustomer = function(id) {
+            const target = customers.find(c => c.id === id);
+            if (!target) return;
+            editId = id;
+            document.getElementById('name').value = target.name;
+            document.getElementById('birthdate').value = target.birthdate === '미입력' ? '' : target.birthdate;
+            document.getElementById('phone').value = target.phone === '미입력' ? '' : target.phone;
+            document.getElementById('company').value = target.company === '미입력' ? '' : target.company;
+            document.getElementById('insuranceType').value = target.insuranceType;
+            document.getElementById('renewalType').value = target.renewalType || '비갱신';
+            document.getElementById('payPeriod').value = target.payPeriod || '';
+            document.getElementById('remarks').value = target.remarks === '-' ? '' : target.remarks;
+            document.getElementById('baseDate').value = target.baseDate;
+
+            document.getElementById('formTitle').innerHTML = '<i class="fa-solid fa-user-pen text-amber-500 mr-2"></i>고객 정보 수정';
+            document.getElementById('submitBtn').innerText = '수정 완료하기';
+            document.getElementById('submitBtn').className = "w-full bg-amber-500 hover:bg-amber-600 text-white font-bold py-3 rounded-xl transition shadow-md";
+            window.updatePayPeriodLabel();
+            window.switchTab('register');
+        }
+
+        window.deleteCustomer = async function(id) {
+            if(confirm('정말 이 보험 계약 정보를 삭제하시겠습니까? 클라우드에서도 영구 삭제됩니다.')) {
+                await deleteDoc(doc(db, "customers", id));
+                if (editId === id) resetFormState();
+            }
+        }
+
+        function resetFormState() {
+            editId = null;
+            document.getElementById('customerForm').reset();
+            document.getElementById('formTitle').innerHTML = '<i class="fa-solid fa-square-plus text-indigo-500 mr-2"></i>신규 고객 등록';
+            document.getElementById('submitBtn').innerText = '고객 저장하기';
+            document.getElementById('submitBtn').className = "w-full bg-indigo-600 hover:bg-indigo-700 text-white font-bold py-3 rounded-xl transition shadow-md";
+            setTodayDateInput();
+            window.updatePayPeriodLabel();
+        }
+
+        function parseLocalDate(dateStr) {
+            const [y, m, d] = dateStr.split('-').map(Number);
+            return new Date(y, m - 1, d);
+        }
+        function getTodayString() {
+            const tObj = new Date();
+            return `${tObj.getFullYear()}-${String(tObj.getMonth() + 1).padStart(2, '0')}-${String(tObj.getDate()).padStart(2, '0')}`;
+        }
+        function setTodayDateInput() { document.getElementById('baseDate').value = getTodayString(); }
+        setTodayDateInput();
+
+        function autoFormatDate(value) {
+            let num = value.replace(/[^0-9]/g, '');
+            if (num.length <= 4) return num;
+            if (num.length <= 6) return `${num.slice(0, 4)}-${num.slice(4)}`;
+            return `${num.slice(0, 4)}-${num.slice(4, 6)}-${num.slice(6, 8)}`;
+        }
+        function autoFormatPhone(value) {
+            let num = value.replace(/[^0-9]/g, '');
+            if (num.length < 4) return num;
+            if (num.length < 7) return num.replace(/(\d{3})(\d{1,3})/, '$1-$2');
+            if (num.length < 11) return num.replace(/(\d{3})(\d{3})(\d{1,4})/, '$1-$2-$3');
+            return num.replace(/(\d{3})(\d{4})(\d{4})/, '$1-$2-$3');
+        }
+
+        document.getElementById('birthdate').addEventListener('input', (e) => { e.target.value = autoFormatDate(e.target.value); });
+        document.getElementById('baseDate').addEventListener('input', (e) => { e.target.value = autoFormatDate(e.target.value); });
+        document.getElementById('phone').addEventListener('input', (e) => { e.target.value = autoFormatPhone(e.target.value); });
+
+        document.getElementById('customerForm').addEventListener('submit', async function(e) {
+            e.preventDefault();
+            if (!currentUser) return;
+
+            const birthdateInput = document.getElementById('birthdate').value.trim();
+            const baseDateInput = document.getElementById('baseDate').value.trim();
+            const dateRegex = /^\d{4}-\d{2}-\d{2}$/;
+            
+            if (birthdateInput && !dateRegex.test(birthdateInput)) { alert('생년월일 형식을 확인해 주세요.'); return; }
+            if (!dateRegex.test(baseDateInput)) { alert('보험가입일 형식을 확인해 주세요.'); return; }
+
+            const customerData = {
+                uid: currentUser.uid,
+                name: document.getElementById('name').value,
+                birthdate: birthdateInput || '미입력',
+                phone: document.getElementById('phone').value || '미입력',
+                company: document.getElementById('company').value || '미입력',
+                insuranceType: document.getElementById('insuranceType').value,
+                renewalType: document.getElementById('renewalType').value,
+                payPeriod: document.getElementById('payPeriod').value || '',
+                remarks: document.getElementById('remarks').value || '-',
+                baseDate: baseDateInput
+            };
+
+            if (editId !== null) {
+                await updateDoc(doc(db, "customers", editId), customerData);
+                alert('수정 완료되었습니다.');
+            } else {
+                await addDoc(collection(db, "customers"), customerData);
+                alert('성공적으로 저장되었습니다.');
+            }
+
+            resetFormState();
+            window.switchTab('list');
+        });
+
+        // --- ★ 실손보험 세대 판별 엔진 디버깅 완료 ★ ---
+        function getSilsonGeneration(dateStr) {
+            if (!dateStr || dateStr === '미입력') return '';
+            
+            // 하이픈(-)을 제거하고 안전하게 연속된 숫자로 치환
+            const pureStr = dateStr.replace(/[^0-9]/g, '');
+            if (pureStr.length !== 8) return ''; // YYYYMMDD 형식이 아니면 예외처리
+            
+            const pureDate = parseInt(pureStr, 10);
+            
+            if (pureDate < 20091001) return '1세대';
+            if (pureDate < 20170401) return '2세대';
+            if (pureDate < 20210701) return '3세대';
+            if (pureDate < 20260506) return '4세대';
+            return '5세대'; // 2026년 5월 6일 포함 그 이후는 철저히 5세대로 분류
+        }
+
+        function calculateTargetDate(baseDateStr, period) {
+            if (!baseDateStr || !period) return '-';
+            const parts = baseDateStr.split('-');
+            if (parts.length !== 3) return '-';
+            return `${parseInt(parts[0]) + parseInt(period)}-${parts[1]}-${parts[2]}`;
+        }
+
+        function getActiveAlerts() {
+            const today = new Date(); today.setHours(0,0,0,0);
+            const todayMMDD = `${String(today.getMonth() + 1).padStart(2, '0')}-${String(today.getDate()).padStart(2, '0')}`;
+            let alertItems = []; const processedBirthdays = new Set();
+
+            customers.forEach(c => {
+                const baseDate = parseLocalDate(c.baseDate);
+                const passedDays = Math.floor((today - baseDate) / (1000 * 60 * 60 * 24)) + 1;
+
+                if(c.birthdate && c.birthdate !== '미입력') {
+                    const birthMMDD = c.birthdate.substring(5, 10);
+                    if(todayMMDD === birthMMDD && !processedBirthdays.has(`${c.name}_${c.birthdate}`)) {
+                        processedBirthdays.add(`${c.name}_${c.birthdate}`);
+                        alertItems.push({ type: 'birth', icon: 'fa-cake-candles text-rose-500', bg: 'bg-rose-50 border-rose-100', text: `🎂 <strong>${c.name}</strong> 고객님 생일 당일입니다!` });
+                    }
+                }
+                if (passedDays > 1 && (passedDays - 1) % 100 === 0) {
+                    alertItems.push({ type: 'milestone', icon: 'fa-gift text-amber-500', bg: 'bg-amber-50 border-amber-100', text: `🎉 <strong>${c.name}</strong> 고객님 가입 <strong>${passedDays - 1}일째</strong> 되는 날입니다.` });
+                }
+                if (todayMMDD === c.baseDate.substring(5, 10) && today.getFullYear() > baseDate.getFullYear()) {
+                    alertItems.push({ type: 'anniversary', icon: 'fa-award text-emerald-500', bg: 'bg-emerald-50 border-emerald-100', text: `📜 <strong>${c.name}</strong> 고객님 보험 가입 <strong>${today.getFullYear() - baseDate.getFullYear()}주년</strong> 기념일입니다!` });
+                }
+            });
+            return alertItems;
+        }
+
+        function updateAppBadges() {
+            document.getElementById('tabCount').innerText = customers.length;
+            const alertCount = getActiveAlerts().length;
+            const titleBadge = document.getElementById('titleAlertBadge');
+            const tabBadge = document.getElementById('tabAlertCount');
+
+            if(alertCount > 0) {
+                document.getElementById('titleAlertCount').innerText = alertCount;
+                titleBadge.classList.remove('hidden');
+                tabBadge.innerText = alertCount; tabBadge.classList.remove('hidden');
+                tabBadge.classList.add('bg-red-500', 'text-white');
+            } else {
+                titleBadge.classList.add('hidden'); tabBadge.classList.add('hidden');
+            }
+        }
+
+        function calculateAndRenderAlertsPage() {
+            const alerts = getActiveAlerts();
+            const emptyMsg = document.getElementById('alertEmptyMessage');
+            const listUl = document.getElementById('tabAlertsList');
+            if(alerts.length === 0) { emptyMsg.classList.remove('hidden'); listUl.classList.add('hidden'); } 
+            else {
+                emptyMsg.classList.add('hidden'); listUl.classList.remove('hidden');
+                listUl.innerHTML = alerts.map(a => `<li class="flex items-start gap-3 p-4 border rounded-xl ${a.bg} text-slate-700 text-sm shadow-xs"><div class="mt-0.5"><i class="fa-solid ${a.icon} text-base"></i></div><div class="leading-relaxed flex-1">${a.text}</div></li>`).join('');
+            }
+            updateAppBadges();
+        }
+
+        function calculateDynamicDdays(baseDateStr) {
+            const baseDate = parseLocalDate(baseDateStr); const today = new Date(); today.setHours(0,0,0,0);
+            const passedDays = Math.floor((today - baseDate) / (1000 * 60 * 60 * 24)) + 1;
+            let next100Goal = Math.max(100, Math.ceil(passedDays / 100) * 100);
+            const targetDate100 = new Date(baseDate); targetDate100.setDate(baseDate.getDate() + next100Goal - 1);
+            const remains100 = Math.floor((targetDate100 - today) / (1000 * 60 * 60 * 24));
+            let nextYearGoal = Math.max(1, Math.ceil(passedDays / 365));
+            const targetDateYear = new Date(baseDate); targetDateYear.setFullYear(baseDate.getFullYear() + nextYearGoal);
+            const remainsYear = Math.floor((targetDateYear - today) / (1000 * 60 * 60 * 24));
+
+            const format = (remains, title, targetDate) => {
+                let label = remains > 0 ? `D-${remains}` : (remains === 0 ? '★ 오늘 ★' : '달성');
+                let statusClass = remains > 0 ? 'bg-slate-100 text-slate-700' : (remains === 0 ? 'bg-red-500 text-white animate-pulse' : 'bg-emerald-100 text-emerald-700 opacity-60');
+                return { title, date: `${String(targetDate.getMonth() + 1).padStart(2,'0')}/${String(targetDate.getDate()).padStart(2,'0')}`, label, statusClass };
+            };
+            return { passedDays, ddayResults: [format(remains100, `${next100Goal}일`, targetDate100), format(remainsYear, `${nextYearGoal}년 주년`, targetDateYear)] };
+        }
+
+        function renderCustomers() {
+            const listContainer = document.getElementById('customerList');
+            const keyword = document.getElementById('searchKeyword').value.trim().toLowerCase();
+            updateAppBadges();
+
+            let filtered = customers;
+            if (keyword) {
+                filtered = customers.filter(c => c.name.toLowerCase().includes(keyword) || c.phone.toLowerCase().includes(keyword) || c.company.toLowerCase().includes(keyword) || c.insuranceType.toLowerCase().includes(keyword) || c.remarks.toLowerCase().includes(keyword));
+            }
+
+            const grouped = {};
+            filtered.forEach(c => {
+                const gk = `${c.name}_${c.birthdate}_${c.phone}`;
+                if (!grouped[gk]) grouped[gk] = { name: c.name, birthdate: c.birthdate, phone: c.phone, policies: [] };
+                grouped[gk].policies.push(c);
+            });
+
+            const uniqueCount = Object.keys(grouped).length;
+            document.getElementById('totalCount').innerText = `총 ${uniqueCount}명 (보장 ${filtered.length}건)`;
+            if (uniqueCount === 0) { listContainer.innerHTML = '<p class="text-center text-slate-400 py-8">데이터가 없습니다.</p>'; return; }
+
+            const todayMMDD = getTodayString().substring(5, 10);
+            listContainer.innerHTML = Object.values(grouped).map(group => {
+                const isBirthToday = (group.birthdate && group.birthdate.substring(5, 10) === todayMMDD);
+                return `
+                    <div class="border border-slate-200 rounded-2xl p-5 bg-white shadow-xs space-y-4 relative">
+                        ${isBirthToday ? '<span class="absolute top-4 right-4 bg-rose-100 text-rose-600 text-xs px-2 py-1 rounded-md font-bold animate-pulse">🎂 오늘 생일!</span>' : ''}
+                        <div class="border-b border-slate-100 pb-3">
+                            <h3 class="text-xl font-black text-slate-800 flex items-center gap-2">
+                                <i class="fa-solid fa-user text-indigo-500 text-base"></i> ${group.name}
+                                <span class="text-xs bg-indigo-50 text-indigo-600 px-2.5 py-0.5 rounded-full font-bold">보장 ${group.policies.length}건</span>
+                            </h3>
+                            <div class="flex flex-wrap gap-x-4 gap-y-1 text-sm text-slate-500 mt-2 font-medium">
+                                <span>생년월일: <strong class="text-slate-700">${group.birthdate}</strong></span>
+                                <span>연락처: <strong class="text-slate-700">${group.phone}</strong></span>
+                            </div>
+                        </div>
+                        <div class="space-y-3.5">
+                            ${group.policies.map(c => {
+                                const { passedDays, ddayResults } = calculateDynamicDdays(c.baseDate);
+                                const rType = c.renewalType || '비갱신';
+                                const renewalBadge = rType === '갱신' ? `<span class="bg-orange-100 text-orange-800 text-xs px-1.5 py-0.5 rounded-sm font-bold">갱신형</span>` : `<span class="bg-blue-100 text-blue-800 text-xs px-1.5 py-0.5 rounded-sm font-bold">비갱신형</span>`;
+                                
+                                let typeDisplay = `${c.insuranceType}보험 ${renewalBadge}`;
+                                if (c.insuranceType === '실손') {
+                                    const gen = getSilsonGeneration(c.baseDate);
+                                    let genColor = 'bg-amber-100 text-amber-800'; 
+                                    if (gen === '5세대') genColor = 'bg-purple-100 text-purple-800'; 
+                                    typeDisplay = `실손보험 <span class="${genColor} text-xs px-1.5 py-0.5 rounded-sm font-bold">${gen}</span> ${renewalBadge}`;
+                                }
+                                
+                                const computedDate = calculateTargetDate(c.baseDate, c.payPeriod);
+                                
+                                return `
+                                    <div class="bg-slate-50 border border-slate-150 rounded-xl p-4 hover:border-indigo-200 transition">
+                                        <div class="flex justify-between items-start mb-2.5">
+                                            <div class="flex flex-wrap items-center gap-2">
+                                                <span class="font-extrabold text-indigo-600 bg-indigo-50 px-2 py-0.5 rounded text-sm">${c.company}</span>
+                                                <span class="text-sm font-bold text-slate-700">${typeDisplay}</span>
+                                                <span class="text-[11px] bg-slate-200 text-slate-700 px-1.5 py-0.5 rounded font-medium">가입 ${passedDays}일째</span>
+                                            </div>
+                                            <div class="flex items-center gap-1 text-xs">
+                                                <button onclick="editCustomer('${c.id}')" class="text-slate-400 hover:text-amber-500 p-1"><i class="fa-solid fa-user-pen"></i></button>
+                                                <button onclick="deleteCustomer('${c.id}')" class="text-slate-400 hover:text-red-500 p-1"><i class="fa-solid fa-trash"></i></button>
+                                            </div>
+                                        </div>
+                                        <div class="grid grid-cols-1 sm:grid-cols-2 gap-x-4 gap-y-1 text-xs text-slate-500 mb-2.5 font-medium">
+                                            <p>가입일: <span class="text-slate-700">${c.baseDate}</span></p>
+                                            <p>${rType === '갱신' ? '갱신일' : '납입종료일'}: <span class="${rType === '갱신' ? 'text-orange-600' : 'text-rose-600'} font-bold">${computedDate} (${c.payPeriod}년)</span></p>
+                                        </div>
+                                        <div class="text-xs text-slate-600 bg-white p-2.5 rounded-lg border border-slate-100 mb-3 whitespace-pre-line shadow-3xs">
+                                            <span class="text-[10px] font-bold text-slate-400 block mb-0.5">[비고]</span>${c.remarks}
+                                        </div>
+                                        <div class="grid grid-cols-2 gap-2 text-center text-[11px]">
+                                            ${ddayResults.map(d => `<div class="bg-white p-2 rounded-lg border border-slate-100 shadow-3xs"><div class="text-slate-400 font-semibold">${d.title} (${d.date})</div><div class="mt-0.5 px-1 py-0.5 rounded font-bold ${d.statusClass} text-xs">${d.label}</div></div>`).join('')}
+                                        </div>
+                                    </div>
+                                `;
+                            }).join('')}
+                        </div>
+                    </div>
+                `;
+            }).join('');
+        }
+        document.getElementById('searchKeyword').addEventListener('input', renderCustomers);
+    </script>
+</body>
+</html>
