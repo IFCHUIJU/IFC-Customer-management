@@ -183,6 +183,11 @@
         let customers = [];
         let editId = null;
 
+        // 브라우저 알림 권한 선제적 요청
+        if ('Notification' in window && Notification.permission === 'default') {
+            Notification.requestPermission();
+        }
+
         if ('serviceWorker' in navigator) {
             window.addEventListener('load', () => { navigator.serviceWorker.register('sw.js').catch(err => console.log(err)); });
         }
@@ -392,27 +397,83 @@
             return `${parseInt(parts[0]) + parseInt(period)}-${parts[1]}-${parts[2]}`;
         }
 
+        // [요청기능 1] 알림 확인(삭제) 처리 함수 생성
+        window.dismissAlert = function(alertKey) {
+            const dismissed = JSON.parse(localStorage.getItem('dismissedAlerts') || '{}');
+            dismissed[alertKey] = true;
+            localStorage.setItem('dismissedAlerts', JSON.stringify(dismissed));
+            calculateAndRenderAlertsPage();
+        }
+
+        // [요청기능 2] 스마트폰 푸시 알림 발송 함수 생성
+        function sendWebPushNotification(title, body) {
+            if ('Notification' in window && Notification.permission === 'granted') {
+                navigator.serviceWorker.ready.then(registration => {
+                    registration.showNotification(title, {
+                        body: body,
+                        icon: 'https://cdn-icons-png.flaticon.com/512/9485/9485945.png',
+                        vibrate: [200, 100, 200]
+                    });
+                });
+            }
+        }
+
         function getActiveAlerts() {
             const today = new Date(); today.setHours(0,0,0,0);
             const todayMMDD = `${String(today.getMonth() + 1).padStart(2, '0')}-${String(today.getDate()).padStart(2, '0')}`;
             let alertItems = []; const processedBirthdays = new Set();
+            
+            // 확인 처리된 알림 리스트 호출
+            const dismissed = JSON.parse(localStorage.getItem('dismissedAlerts') || '{}');
 
             customers.forEach(c => {
                 const baseDate = parseLocalDate(c.baseDate);
                 const passedDays = Math.floor((today - baseDate) / (1000 * 60 * 60 * 24)) + 1;
 
+                // --- 1. 생일 처리 ---
                 if(c.birthdate && c.birthdate !== '미입력') {
                     const birthMMDD = c.birthdate.substring(5, 10);
                     if(todayMMDD === birthMMDD && !processedBirthdays.has(`${c.name}_${c.birthdate}`)) {
                         processedBirthdays.add(`${c.name}_${c.birthdate}`);
-                        alertItems.push({ type: 'birth', icon: 'fa-cake-candles text-rose-500', bg: 'bg-rose-50 border-rose-100', text: `🎂 <strong>${c.name}</strong> 고객님 생일 당일입니다!` });
+                        const key = `birth_${c.id}_${today.getFullYear()}`;
+                        if (!dismissed[key]) {
+                            alertItems.push({ key, type: 'birth', icon: 'fa-cake-candles text-rose-500', bg: 'bg-rose-50 border-rose-100', text: `🎂 <strong>${c.name}</strong> 고객님 생일 당일입니다!` });
+                        }
                     }
                 }
-                if (passedDays > 1 && (passedDays - 1) % 100 === 0) {
-                    alertItems.push({ type: 'milestone', icon: 'fa-gift text-amber-500', bg: 'bg-amber-50 border-amber-100', text: `🎉 <strong>${c.name}</strong> 고객님 가입 <strong>${passedDays - 1}일째</strong> 되는 날입니다.` });
+
+                // --- 2. 가입 100일 단위 D-day 분석 및 하루 전 스마트폰 알림 발송 ---
+                let next100Goal = Math.max(100, Math.ceil(passedDays / 100) * 100);
+                const targetDate100 = new Date(baseDate); targetDate100.setDate(baseDate.getDate() + next100Goal - 1);
+                const remains100 = Math.floor((targetDate100 - today) / (1000 * 60 * 60 * 24));
+
+                // [요청기능 2] 100일 단위 하루 전날 푸시 발송
+                if (remains100 === 1) {
+                    sendWebPushNotification("D-day 하루 전 알림", `${c.name}님의 가입 ${next100Goal}일 D-day 하루 전입니다.`);
                 }
-                if (todayMMDD === c.baseDate.substring(5, 10) && today.getFullYear() > baseDate.getFullYear()) {
-                    alertItems.push({ type: 'anniversary', icon: 'fa-award text-emerald-500', bg: 'bg-emerald-50 border-emerald-100', text: `📜 <strong>${c.name}</strong> 고객님 보험 가입 <strong>${today.getFullYear() - baseDate.getFullYear()}주년</strong> 기념일입니다!` });
+                // [요청기능 1] 당일이거나 이미 지났어도 확인하기 전까지 노출 유지
+                if (remains100 <= 0) {
+                    const key = `milestone_${c.id}_${next100Goal}`;
+                    if (!dismissed[key]) {
+                        alertItems.push({ key, type: 'milestone', icon: 'fa-gift text-amber-500', bg: 'bg-amber-50 border-amber-100', text: `🎉 <strong>${c.name}</strong> 고객님 가입 <strong>${next100Goal}일째</strong> 알림입니다.` });
+                    }
+                }
+
+                // --- 3. 가입 주년 단위 D-day 분석 및 하루 전 스마트폰 알림 발송 ---
+                let nextYearGoal = Math.max(1, Math.ceil(passedDays / 365));
+                const targetDateYear = new Date(baseDate); targetDateYear.setFullYear(baseDate.getFullYear() + nextYearGoal);
+                const remainsYear = Math.floor((targetDateYear - today) / (1000 * 60 * 60 * 24));
+
+                // [요청기능 2] 주년 하루 전날 푸시 발송
+                if (remainsYear === 1) {
+                    sendWebPushNotification("D-day 하루 전 알림", `${c.name}님의 보험 가입 ${nextYearGoal}주년 D-day 하루 전입니다.`);
+                }
+                // [요청기능 1] 당일이거나 이미 지났어도 확인하기 전까지 노출 유지
+                if (remainsYear <= 0 && today.getFullYear() > baseDate.getFullYear()) {
+                    const key = `anniversary_${c.id}_${nextYearGoal}`;
+                    if (!dismissed[key]) {
+                        alertItems.push({ key, type: 'anniversary', icon: 'fa-award text-emerald-500', bg: 'bg-emerald-50 border-emerald-100', text: `📜 <strong>${c.name}</strong> 고객님 보험 가입 <strong>${nextYearGoal}주년</strong> 기념 알림입니다!` });
+                    }
                 }
             });
             return alertItems;
@@ -441,7 +502,16 @@
             if(alerts.length === 0) { emptyMsg.classList.remove('hidden'); listUl.classList.add('hidden'); } 
             else {
                 emptyMsg.classList.add('hidden'); listUl.classList.remove('hidden');
-                listUl.innerHTML = alerts.map(a => `<li class="flex items-start gap-3 p-4 border rounded-xl ${a.bg} text-slate-700 text-sm shadow-xs"><div class="mt-0.5"><i class="fa-solid ${a.icon} text-base"></i></div><div class="leading-relaxed flex-1">${a.text}</div></li>`).join('');
+                // [요청기능 1] 리스트 우측에 개별 확인 및 수동 삭제가 가능한 버튼 UI 삽입
+                listUl.innerHTML = alerts.map(a => `
+                    <li class="flex items-center justify-between gap-3 p-4 border rounded-xl ${a.bg} text-slate-700 text-sm shadow-xs">
+                        <div class="flex items-start gap-3 flex-1">
+                            <div class="mt-0.5"><i class="fa-solid ${a.icon} text-base"></i></div>
+                            <div class="leading-relaxed flex-1">${a.text}</div>
+                        </div>
+                        <button onclick="dismissAlert('${a.key}')" class="bg-slate-200 hover:bg-slate-300 text-slate-700 text-xs font-bold px-2.5 py-1.5 rounded-lg transition shrink-0">확인</button>
+                    </li>
+                `).join('');
             }
             updateAppBadges();
         }
