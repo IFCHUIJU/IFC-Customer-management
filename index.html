@@ -60,7 +60,7 @@
             </div>
         </header>
 
-        <!-- 스마트폰 알림 강제 등록 및 유도 버튼 안내 UI 추가 -->
+        <!-- 스마트폰 알림 강제 등록 및 유도 버튼 안내 UI -->
         <div id="notificationPromptBar" class="mb-4 bg-amber-50 border border-amber-200 p-3.5 rounded-xl flex flex-col sm:flex-row justify-between items-center gap-2.5 text-xs text-amber-800 font-semibold shadow-xs">
             <div class="flex items-center gap-2">
                 <i class="fa-solid fa-circle-exclamation text-amber-500 text-sm"></i>
@@ -199,7 +199,7 @@
             Notification.requestPermission();
         }
 
-        // [강제 트리거 유도] 알림 활성화 버튼을 직접 눌렀을 때 실행되는 스마트폰 연동 로직
+        // 알림 활성화 버튼 강제 연동 로직
         document.getElementById('btnEnableNotification').addEventListener('click', () => {
             if (!('Notification' in window)) {
                 alert('이 브라우저는 알림 기능을 지원하지 않습니다.');
@@ -232,7 +232,6 @@
                 document.getElementById('userEmailDisplay').innerText = `${user.email}`;
                 initRealtimeDatabase(user.uid);
                 
-                // 이미 승인되어 있다면 안내 바 숨기기
                 if ('Notification' in window && Notification.permission === 'granted') {
                     document.getElementById('notificationPromptBar').classList.add('hidden');
                 }
@@ -426,7 +425,6 @@
             return `${parseInt(parts[0]) + parseInt(period)}-${parts[1]}-${parts[2]}`;
         }
 
-        // 알림 확인(수동 제거) 처리 로직
         window.dismissAlert = function(alertKey) {
             const dismissed = JSON.parse(localStorage.getItem('dismissedAlerts') || '{}');
             dismissed[alertKey] = true;
@@ -434,7 +432,6 @@
             calculateAndRenderAlertsPage();
         }
 
-        // 스마트폰 시스템 푸시 발송 로직
         function sendWebPushNotification(title, body) {
             if ('Notification' in window && Notification.permission === 'granted') {
                 navigator.serviceWorker.ready.then(registration => {
@@ -447,6 +444,7 @@
             }
         }
 
+        // [중요 수정] 당일 알림(=== 0) 및 중복 발송 제어 시스템 로직
         function getActiveAlerts() {
             const today = new Date(); today.setHours(0,0,0,0);
             const todayMMDD = `${String(today.getMonth() + 1).padStart(2, '0')}-${String(today.getDate()).padStart(2, '0')}`;
@@ -468,33 +466,47 @@
                     }
                 }
 
-                // 100일 단위 분석 및 하루 전 푸시 발송
+                // 1. 가입 100일 단위 분석 및 당일 푸시 발송 (=== 0)
                 let next100Goal = Math.max(100, Math.ceil(passedDays / 100) * 100);
                 const targetDate100 = new Date(baseDate); targetDate100.setDate(baseDate.getDate() + next100Goal - 1);
                 const remains100 = Math.floor((targetDate100 - today) / (1000 * 60 * 60 * 24));
 
-                if (remains100 === 1) {
-                    sendWebPushNotification("D-day 하루 전 알림", `${c.name}님의 가입 ${next100Goal}일 D-day 하루 전입니다.`);
-                }
                 if (remains100 <= 0) {
                     const key = `milestone_${c.id}_${next100Goal}`;
                     if (!dismissed[key]) {
                         alertItems.push({ key, type: 'milestone', icon: 'fa-gift text-amber-500', bg: 'bg-amber-50 border-amber-100', text: `🎉 <strong>${c.name}</strong> 고객님 가입 <strong>${next100Goal}일째</strong> 알림입니다.` });
                     }
+                    
+                    // 당일(=== 0)인 시점에 오늘 아직 푸시가 안 나갔다면 단 한 번만 전송
+                    if (remains100 === 0) {
+                        const pushKey100 = `push_milestone_${c.id}_${next100Goal}`;
+                        if (!dismissed[pushKey100]) {
+                            sendWebPushNotification("D-day 당일 알림", `${c.name}님의 가입 ${next100Goal}일 당일입니다! 🎉`);
+                            dismissed[pushKey100] = true;
+                            localStorage.setItem('dismissedAlerts', JSON.stringify(dismissed));
+                        }
+                    }
                 }
 
-                // 주년 단위 분석 및 하루 전 푸시 발송
+                // 2. 주년 단위 분석 및 당일 푸시 발송 (=== 0)
                 let nextYearGoal = Math.max(1, Math.ceil(passedDays / 365));
                 const targetDateYear = new Date(baseDate); targetDateYear.setFullYear(baseDate.getFullYear() + nextYearGoal);
                 const remainsYear = Math.floor((targetDateYear - today) / (1000 * 60 * 60 * 24));
 
-                if (remainsYear === 1) {
-                    sendWebPushNotification("D-day 하루 전 알림", `${c.name}님의 보험 가입 ${nextYearGoal}주년 D-day 하루 전입니다.`);
-                }
                 if (remainsYear <= 0 && today.getFullYear() > baseDate.getFullYear()) {
                     const key = `anniversary_${c.id}_${nextYearGoal}`;
                     if (!dismissed[key]) {
                         alertItems.push({ key, type: 'anniversary', icon: 'fa-award text-emerald-500', bg: 'bg-emerald-50 border-emerald-100', text: `📜 <strong>${c.name}</strong> 고객님 보험 가입 <strong>${nextYearGoal}주년</strong> 기념 알림입니다!` });
+                    }
+                    
+                    // 당일(=== 0)인 시점에 오늘 아직 푸시가 안 나갔다면 단 한 번만 전송
+                    if (remainsYear === 0) {
+                        const pushKeyYear = `push_anniversary_${c.id}_${nextYearGoal}`;
+                        if (!dismissed[pushKeyYear]) {
+                            sendWebPushNotification("D-day 당일 알림", `${c.name}님의 보험 가입 ${nextYearGoal}주년 당일입니다! 📜`);
+                            dismissed[pushKeyYear] = true;
+                            localStorage.setItem('dismissedAlerts', JSON.stringify(dismissed));
+                        }
                     }
                 }
             });
