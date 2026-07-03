@@ -60,6 +60,17 @@
             </div>
         </header>
 
+        <!-- 스마트폰 알림 강제 등록 및 유도 버튼 안내 UI 추가 -->
+        <div id="notificationPromptBar" class="mb-4 bg-amber-50 border border-amber-200 p-3.5 rounded-xl flex flex-col sm:flex-row justify-between items-center gap-2.5 text-xs text-amber-800 font-semibold shadow-xs">
+            <div class="flex items-center gap-2">
+                <i class="fa-solid fa-circle-exclamation text-amber-500 text-sm"></i>
+                <span>스마트폰 설정에 앱이 안 뜨거나 푸시 알림이 안 오시나요? 아래 버튼을 눌러 권한을 승인해 주세요.</span>
+            </div>
+            <button id="btnEnableNotification" class="bg-amber-500 hover:bg-amber-600 text-white font-bold px-3 py-1.5 rounded-lg transition shrink-0 shadow-3xs">
+                🔔 스마트폰 푸시 알림 활성화하기
+            </button>
+        </div>
+
         <!-- 상단 3단 탭 메뉴 -->
         <div class="flex bg-white rounded-xl p-1.5 shadow-xs border border-slate-200 mb-6 gap-1">
             <button id="tabBtnRegister" onclick="switchTab('register')" class="flex-1 py-3 text-center font-bold rounded-lg transition duration-150 bg-indigo-600 text-white shadow-xs">
@@ -183,10 +194,28 @@
         let customers = [];
         let editId = null;
 
-        // 브라우저 알림 권한 선제적 요청
+        // 브라우저 최초 자동 알림 요청 시도
         if ('Notification' in window && Notification.permission === 'default') {
             Notification.requestPermission();
         }
+
+        // [강제 트리거 유도] 알림 활성화 버튼을 직접 눌렀을 때 실행되는 스마트폰 연동 로직
+        document.getElementById('btnEnableNotification').addEventListener('click', () => {
+            if (!('Notification' in window)) {
+                alert('이 브라우저는 알림 기능을 지원하지 않습니다.');
+                return;
+            }
+            Notification.requestPermission().then(permission => {
+                if (permission === 'granted') {
+                    alert('✅ 스마트폰 알림 권한이 성공적으로 허용되었습니다!\n이제 스마트폰 [설정] -> [알림] 메뉴에서 이 앱의 목록을 확인하실 수 있습니다.');
+                    document.getElementById('notificationPromptBar').classList.add('hidden');
+                } else if (permission === 'denied') {
+                    alert('❌ 알림 권한이 차단되었습니다.\n스마트폰 설정이나 브라우저 주소창 왼쪽의 자물쇠 아이콘을 눌러 알림 권한을 직접 허용으로 변경해 주셔야 합니다.');
+                } else {
+                    alert('알림 허용이 완료되지 않았습니다. 다시 한번 눌러 [허용]을 선택해 주세요.');
+                }
+            });
+        });
 
         if ('serviceWorker' in navigator) {
             window.addEventListener('load', () => { navigator.serviceWorker.register('sw.js').catch(err => console.log(err)); });
@@ -202,6 +231,11 @@
                 appContainer.classList.remove('hidden');
                 document.getElementById('userEmailDisplay').innerText = `${user.email}`;
                 initRealtimeDatabase(user.uid);
+                
+                // 이미 승인되어 있다면 안내 바 숨기기
+                if ('Notification' in window && Notification.permission === 'granted') {
+                    document.getElementById('notificationPromptBar').classList.add('hidden');
+                }
             } else {
                 currentUser = null;
                 authContainer.classList.remove('hidden');
@@ -373,21 +407,16 @@
             window.switchTab('list');
         });
 
-        // --- ★ 실손보험 세대 판별 엔진 디버깅 완료 ★ ---
         function getSilsonGeneration(dateStr) {
             if (!dateStr || dateStr === '미입력') return '';
-            
-            // 하이픈(-)을 제거하고 안전하게 연속된 숫자로 치환
             const pureStr = dateStr.replace(/[^0-9]/g, '');
-            if (pureStr.length !== 8) return ''; // YYYYMMDD 형식이 아니면 예외처리
-            
+            if (pureStr.length !== 8) return '';
             const pureDate = parseInt(pureStr, 10);
-            
             if (pureDate < 20091001) return '1세대';
             if (pureDate < 20170401) return '2세대';
             if (pureDate < 20210701) return '3세대';
             if (pureDate < 20260506) return '4세대';
-            return '5세대'; // 2026년 5월 6일 포함 그 이후는 철저히 5세대로 분류
+            return '5세대';
         }
 
         function calculateTargetDate(baseDateStr, period) {
@@ -397,7 +426,7 @@
             return `${parseInt(parts[0]) + parseInt(period)}-${parts[1]}-${parts[2]}`;
         }
 
-        // [요청기능 1] 알림 확인(삭제) 처리 함수 생성
+        // 알림 확인(수동 제거) 처리 로직
         window.dismissAlert = function(alertKey) {
             const dismissed = JSON.parse(localStorage.getItem('dismissedAlerts') || '{}');
             dismissed[alertKey] = true;
@@ -405,7 +434,7 @@
             calculateAndRenderAlertsPage();
         }
 
-        // [요청기능 2] 스마트폰 푸시 알림 발송 함수 생성
+        // 스마트폰 시스템 푸시 발송 로직
         function sendWebPushNotification(title, body) {
             if ('Notification' in window && Notification.permission === 'granted') {
                 navigator.serviceWorker.ready.then(registration => {
@@ -422,15 +451,12 @@
             const today = new Date(); today.setHours(0,0,0,0);
             const todayMMDD = `${String(today.getMonth() + 1).padStart(2, '0')}-${String(today.getDate()).padStart(2, '0')}`;
             let alertItems = []; const processedBirthdays = new Set();
-            
-            // 확인 처리된 알림 리스트 호출
             const dismissed = JSON.parse(localStorage.getItem('dismissedAlerts') || '{}');
 
             customers.forEach(c => {
                 const baseDate = parseLocalDate(c.baseDate);
                 const passedDays = Math.floor((today - baseDate) / (1000 * 60 * 60 * 24)) + 1;
 
-                // --- 1. 생일 처리 ---
                 if(c.birthdate && c.birthdate !== '미입력') {
                     const birthMMDD = c.birthdate.substring(5, 10);
                     if(todayMMDD === birthMMDD && !processedBirthdays.has(`${c.name}_${c.birthdate}`)) {
@@ -442,16 +468,14 @@
                     }
                 }
 
-                // --- 2. 가입 100일 단위 D-day 분석 및 하루 전 스마트폰 알림 발송 ---
+                // 100일 단위 분석 및 하루 전 푸시 발송
                 let next100Goal = Math.max(100, Math.ceil(passedDays / 100) * 100);
                 const targetDate100 = new Date(baseDate); targetDate100.setDate(baseDate.getDate() + next100Goal - 1);
                 const remains100 = Math.floor((targetDate100 - today) / (1000 * 60 * 60 * 24));
 
-                // [요청기능 2] 100일 단위 하루 전날 푸시 발송
                 if (remains100 === 1) {
                     sendWebPushNotification("D-day 하루 전 알림", `${c.name}님의 가입 ${next100Goal}일 D-day 하루 전입니다.`);
                 }
-                // [요청기능 1] 당일이거나 이미 지났어도 확인하기 전까지 노출 유지
                 if (remains100 <= 0) {
                     const key = `milestone_${c.id}_${next100Goal}`;
                     if (!dismissed[key]) {
@@ -459,16 +483,14 @@
                     }
                 }
 
-                // --- 3. 가입 주년 단위 D-day 분석 및 하루 전 스마트폰 알림 발송 ---
+                // 주년 단위 분석 및 하루 전 푸시 발송
                 let nextYearGoal = Math.max(1, Math.ceil(passedDays / 365));
                 const targetDateYear = new Date(baseDate); targetDateYear.setFullYear(baseDate.getFullYear() + nextYearGoal);
                 const remainsYear = Math.floor((targetDateYear - today) / (1000 * 60 * 60 * 24));
 
-                // [요청기능 2] 주년 하루 전날 푸시 발송
                 if (remainsYear === 1) {
                     sendWebPushNotification("D-day 하루 전 알림", `${c.name}님의 보험 가입 ${nextYearGoal}주년 D-day 하루 전입니다.`);
                 }
-                // [요청기능 1] 당일이거나 이미 지났어도 확인하기 전까지 노출 유지
                 if (remainsYear <= 0 && today.getFullYear() > baseDate.getFullYear()) {
                     const key = `anniversary_${c.id}_${nextYearGoal}`;
                     if (!dismissed[key]) {
@@ -502,7 +524,6 @@
             if(alerts.length === 0) { emptyMsg.classList.remove('hidden'); listUl.classList.add('hidden'); } 
             else {
                 emptyMsg.classList.add('hidden'); listUl.classList.remove('hidden');
-                // [요청기능 1] 리스트 우측에 개별 확인 및 수동 삭제가 가능한 버튼 UI 삽입
                 listUl.innerHTML = alerts.map(a => `
                     <li class="flex items-center justify-between gap-3 p-4 border rounded-xl ${a.bg} text-slate-700 text-sm shadow-xs">
                         <div class="flex items-start gap-3 flex-1">
