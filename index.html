@@ -4,22 +4,17 @@
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>클라우드 고객관리 시스템</title>
-    
-    <!-- PWA 설정 -->
     <link rel="manifest" href="manifest.json">
     <meta name="theme-color" content="#4f46e5">
     <meta name="apple-mobile-web-app-capable" content="yes">
     <meta name="apple-mobile-web-app-status-bar-style" content="default">
     <meta name="apple-mobile-web-app-title" content="고객관리">
     <link class="apple-touch-icon" href="https://cdn-icons-png.flaticon.com/512/9485/9485945.png">
-
-    <!-- Tailwind CSS & FontAwesome -->
     <script src="https://cdn.jsdelivr.net/npm/@tailwindcss/browser@4"></script>
     <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
 </head>
 <body class="bg-slate-100 min-h-screen p-4 md:p-8 font-sans">
 
-    <!-- [1] 로그인 / 회원가입 화면 -->
     <div id="authContainer" class="max-w-md mx-auto my-12 bg-white p-8 rounded-2xl shadow-md border border-slate-200">
         <div class="text-center mb-6">
             <i class="fa-solid fa-users-gear text-4xl text-indigo-600 mb-2"></i>
@@ -42,14 +37,10 @@
         </form>
     </div>
 
-    <!-- [2] 메인 앱 화면 -->
     <div id="appContainer" class="max-w-3xl mx-auto hidden">
-        <!-- 헤더 및 로그아웃 -->
         <header class="mb-6 flex flex-col sm:flex-row justify-between items-center gap-3">
             <div class="inline-flex items-center justify-center gap-2.5">
-                <h1 class="text-3xl font-black text-slate-800">
-                    <i class="fa-solid fa-users-gear text-indigo-600 mr-1"></i>고객관리 시스템
-                </h1>
+                <h1 class="text-3xl font-black text-slate-800"><i class="fa-solid fa-users-gear text-indigo-600 mr-1"></i>고객관리 시스템</h1>
                 <span id="titleAlertBadge" onclick="switchTab('alerts')" class="hidden bg-red-500 text-white text-xs font-extrabold px-2.5 py-1 rounded-full animate-bounce shadow-md cursor-pointer hover:bg-red-600 transition">
                     알림(<span id="titleAlertCount">0</span>)
                 </span>
@@ -60,33 +51,20 @@
             </div>
         </header>
 
-        <!-- 스마트폰 알림 강제 등록 및 유도 버튼 안내 UI -->
         <div id="notificationPromptBar" class="mb-4 bg-amber-50 border border-amber-200 p-3.5 rounded-xl flex flex-col sm:flex-row justify-between items-center gap-2.5 text-xs text-amber-800 font-semibold shadow-xs">
             <div class="flex items-center gap-2">
                 <i class="fa-solid fa-circle-exclamation text-amber-500 text-sm"></i>
                 <span>스마트폰 설정에 앱이 안 뜨거나 푸시 알림이 안 오시나요? 아래 버튼을 눌러 권한을 승인해 주세요.</span>
             </div>
-            <button id="btnEnableNotification" class="bg-amber-500 hover:bg-amber-600 text-white font-bold px-3 py-1.5 rounded-lg transition shrink-0 shadow-3xs">
-                🔔 스마트폰 푸시 알림 활성화하기
-            </button>
+            <button id="btnEnableNotification" class="bg-amber-500 hover:bg-amber-600 text-white font-bold px-3 py-1.5 rounded-lg transition shrink-0 shadow-3xs">🔔 스마트폰 푸시 알림 활성화하기</button>
         </div>
 
-        <!-- 상단 3단 탭 메뉴 -->
         <div class="flex bg-white rounded-xl p-1.5 shadow-xs border border-slate-200 mb-6 gap-1">
-            <button id="tabBtnRegister" onclick="switchTab('register')" class="flex-1 py-3 text-center font-bold rounded-lg transition duration-150 bg-indigo-600 text-white shadow-xs">
-                <i class="fa-solid fa-user-plus mr-1"></i> 고객 등록
-            </button>
-            <button id="tabBtnList" onclick="switchTab('list')" class="flex-1 py-3 text-center font-bold rounded-lg transition duration-150 text-slate-500 hover:text-slate-800">
-                <i class="fa-solid fa-list mr-1"></i> 고객 목록 
-                <span id="tabCount" class="bg-slate-100 text-slate-600 px-2 py-0.5 rounded-full text-xs ml-1 font-bold">0</span>
-            </button>
-            <button id="tabBtnAlerts" onclick="switchTab('alerts')" class="flex-1 py-3 text-center font-bold rounded-lg transition duration-150 text-slate-500 hover:text-slate-800 flex justify-center items-center gap-1">
-                <i class="fa-solid fa-bell mr-1"></i> 중요 알림
-                <span id="tabAlertCount" class="px-2 py-0.5 rounded-full text-xs font-bold hidden">0</span>
-            </button>
+            <button id="tabBtnRegister" onclick="switchTab('register')" class="flex-1 py-3 text-center font-bold rounded-lg transition duration-150 bg-indigo-600 text-white shadow-xs"><i class="fa-solid fa-user-plus mr-1"></i> 고객 등록</button>
+            <button id="tabBtnList" onclick="switchTab('list')" class="flex-1 py-3 text-center font-bold rounded-lg transition duration-150 text-slate-500 hover:text-slate-800"><i class="fa-solid fa-list mr-1"></i> 고객 목록 <span id="tabCount" class="bg-slate-100 text-slate-600 px-2 py-0.5 rounded-full text-xs ml-1 font-bold">0</span></button>
+            <button id="tabBtnAlerts" onclick="switchTab('alerts')" class="flex-1 py-3 text-center font-bold rounded-lg transition duration-150 text-slate-500 hover:text-slate-800 flex justify-center items-center gap-1"><i class="fa-solid fa-bell mr-1"></i> 중요 알림 <span id="tabAlertCount" class="px-2 py-0.5 rounded-full text-xs font-bold hidden">0</span></button>
         </div>
 
-        <!-- 1번 탭: 고객 등록/수정 -->
         <div id="tabContentRegister" class="bg-white p-6 rounded-2xl shadow-sm border border-slate-200">
             <h2 id="formTitle" class="text-xl font-bold text-slate-800 mb-4"><i class="fa-solid fa-square-plus text-indigo-500 mr-2"></i>신규 고객 등록</h2>
             <form id="customerForm" class="space-y-4">
@@ -146,7 +124,6 @@
             </form>
         </div>
 
-        <!-- 2번 탭: 고객 목록 -->
         <div id="tabContentList" class="bg-white p-6 rounded-2xl shadow-sm border border-slate-200 hidden">
             <div class="flex justify-between items-center mb-4">
                 <h2 class="text-xl font-bold text-slate-800"><i class="fa-solid fa-address-book text-indigo-500 mr-2"></i>고객목록</h2>
@@ -159,23 +136,18 @@
             <div id="customerList" class="space-y-5 max-h-[630px] overflow-y-auto pr-2"></div>
         </div>
 
-        <!-- 3번 탭: 중요 알림 -->
         <div id="tabContentAlerts" class="bg-white p-6 rounded-2xl shadow-sm border border-slate-200 hidden">
             <h2 class="text-xl font-bold text-slate-800 mb-4"><i class="fa-solid fa-bell text-amber-500 mr-2"></i>오늘의 중요 알림 목록</h2>
-            <div id="alertEmptyMessage" class="text-center text-slate-400 py-12">
-                <i class="fa-solid fa-calendar-check text-4xl mb-3 text-slate-300 block"></i>오늘 예정된 중요 알림이 없습니다.
-            </div>
+            <div id="alertEmptyMessage" class="text-center text-slate-400 py-12"><i class="fa-solid fa-calendar-check text-4xl mb-3 text-slate-300 block"></i>오늘 예정된 중요 알림이 없습니다.</div>
             <ul id="tabAlertsList" class="space-y-3 hidden"></ul>
         </div>
     </div>
 
-    <!-- Firebase SDK 연결 -->
     <script type="module">
         import { initializeApp } from "https://www.gstatic.com/firebasejs/10.12.0/firebase-app.js";
         import { getAuth, signInWithEmailAndPassword, createUserWithEmailAndPassword, signOut, onAuthStateChanged } from "https://www.gstatic.com/firebasejs/10.12.0/firebase-auth.js";
         import { getFirestore, collection, addDoc, updateDoc, deleteDoc, doc, onSnapshot, query, where } from "https://www.gstatic.com/firebasejs/10.12.0/firebase-firestore.js";
 
-        // 파이어베이스 설정값 유지
         const firebaseConfig = {
             apiKey: "AIzaSyBNp-ZFEUjF_QoYG7OaEWB234-hC8hj8Fc",
             authDomain: "my-crm-app-f9628.firebaseapp.com",
@@ -194,17 +166,10 @@
         let customers = [];
         let editId = null;
 
-        // 브라우저 최초 자동 알림 요청 시도
-        if ('Notification' in window && Notification.permission === 'default') {
-            Notification.requestPermission();
-        }
+        if ('Notification' in window && Notification.permission === 'default') { Notification.requestPermission(); }
 
-        // 알림 활성화 버튼 강제 연동 로직
         document.getElementById('btnEnableNotification').addEventListener('click', () => {
-            if (!('Notification' in window)) {
-                alert('이 브라우저는 알림 기능을 지원하지 않습니다.');
-                return;
-            }
+            if (!('Notification' in window)) { alert('이 브라우저는 알림 기능을 지원하지 않습니다.'); return; }
             Notification.requestPermission().then(permission => {
                 if (permission === 'granted') {
                     alert('✅ 스마트폰 알림 권한이 성공적으로 허용되었습니다!\n이제 스마트폰 [설정] -> [알림] 메뉴에서 이 앱의 목록을 확인하실 수 있습니다.');
@@ -231,7 +196,6 @@
                 appContainer.classList.remove('hidden');
                 document.getElementById('userEmailDisplay').innerText = `${user.email}`;
                 initRealtimeDatabase(user.uid);
-                
                 if ('Notification' in window && Notification.permission === 'granted') {
                     document.getElementById('notificationPromptBar').classList.add('hidden');
                 }
@@ -252,9 +216,7 @@
             const email = document.getElementById('authEmail').value;
             const password = document.getElementById('authPassword').value;
             if(confirm('이 정보로 새 계정을 만드시겠습니까?')) {
-                createUserWithEmailAndPassword(auth, email, password)
-                    .then(() => alert('회원가입 및 로그인 성공!'))
-                    .catch(err => alert('회원가입 실패: ' + err.message));
+                createUserWithEmailAndPassword(auth, email, password).then(() => alert('회원가입 및 로그인 성공!')).catch(err => alert('회원가입 실패: ' + err.message));
             }
         });
 
@@ -264,9 +226,7 @@
             const q = query(collection(db, "customers"), where("uid", "==", uid));
             onSnapshot(q, (snapshot) => {
                 customers = [];
-                snapshot.forEach((doc) => {
-                    customers.push({ id: doc.id, ...doc.data() });
-                });
+                snapshot.forEach((doc) => { customers.push({ id: doc.id, ...doc.data() }); });
                 renderCustomers();
                 calculateAndRenderAlertsPage();
             });
@@ -401,7 +361,6 @@
                 await addDoc(collection(db, "customers"), customerData);
                 alert('성공적으로 저장되었습니다.');
             }
-
             resetFormState();
             window.switchTab('list');
         });
@@ -444,7 +403,6 @@
             }
         }
 
-        // [중요 수정] 당일 알림(=== 0) 및 중복 발송 제어 시스템 로직
         function getActiveAlerts() {
             const today = new Date(); today.setHours(0,0,0,0);
             const todayMMDD = `${String(today.getMonth() + 1).padStart(2, '0')}-${String(today.getDate()).padStart(2, '0')}`;
@@ -463,10 +421,17 @@
                         if (!dismissed[key]) {
                             alertItems.push({ key, type: 'birth', icon: 'fa-cake-candles text-rose-500', bg: 'bg-rose-50 border-rose-100', text: `🎂 <strong>${c.name}</strong> 고객님 생일 당일입니다!` });
                         }
+                        
+                        // 🌟 [추가됨] 생일 당일인 경우 스마트폰 푸시 알림 발송 및 하루 1회 전송 제어
+                        const pushKeyBirth = `push_birth_${c.id}_${today.getFullYear()}`;
+                        if (!dismissed[pushKeyBirth]) {
+                            sendWebPushNotification("🎂 생일 축하 알림", `${c.name} 고객님의 생일 당일입니다! 🎉`);
+                            dismissed[pushKeyBirth] = true;
+                            localStorage.setItem('dismissedAlerts', JSON.stringify(dismissed));
+                        }
                     }
                 }
 
-                // 1. 가입 100일 단위 분석 및 당일 푸시 발송 (=== 0)
                 let next100Goal = Math.max(100, Math.ceil(passedDays / 100) * 100);
                 const targetDate100 = new Date(baseDate); targetDate100.setDate(baseDate.getDate() + next100Goal - 1);
                 const remains100 = Math.floor((targetDate100 - today) / (1000 * 60 * 60 * 24));
@@ -476,8 +441,6 @@
                     if (!dismissed[key]) {
                         alertItems.push({ key, type: 'milestone', icon: 'fa-gift text-amber-500', bg: 'bg-amber-50 border-amber-100', text: `🎉 <strong>${c.name}</strong> 고객님 가입 <strong>${next100Goal}일째</strong> 알림입니다.` });
                     }
-                    
-                    // 당일(=== 0)인 시점에 오늘 아직 푸시가 안 나갔다면 단 한 번만 전송
                     if (remains100 === 0) {
                         const pushKey100 = `push_milestone_${c.id}_${next100Goal}`;
                         if (!dismissed[pushKey100]) {
@@ -488,7 +451,6 @@
                     }
                 }
 
-                // 2. 주년 단위 분석 및 당일 푸시 발송 (=== 0)
                 let nextYearGoal = Math.max(1, Math.ceil(passedDays / 365));
                 const targetDateYear = new Date(baseDate); targetDateYear.setFullYear(baseDate.getFullYear() + nextYearGoal);
                 const remainsYear = Math.floor((targetDateYear - today) / (1000 * 60 * 60 * 24));
@@ -498,8 +460,6 @@
                     if (!dismissed[key]) {
                         alertItems.push({ key, type: 'anniversary', icon: 'fa-award text-emerald-500', bg: 'bg-emerald-50 border-emerald-100', text: `📜 <strong>${c.name}</strong> 고객님 보험 가입 <strong>${nextYearGoal}주년</strong> 기념 알림입니다!` });
                     }
-                    
-                    // 당일(=== 0)인 시점에 오늘 아직 푸시가 안 나갔다면 단 한 번만 전송
                     if (remainsYear === 0) {
                         const pushKeyYear = `push_anniversary_${c.id}_${nextYearGoal}`;
                         if (!dismissed[pushKeyYear]) {
@@ -609,7 +569,6 @@
                                 const { passedDays, ddayResults } = calculateDynamicDdays(c.baseDate);
                                 const rType = c.renewalType || '비갱신';
                                 const renewalBadge = rType === '갱신' ? `<span class="bg-orange-100 text-orange-800 text-xs px-1.5 py-0.5 rounded-sm font-bold">갱신형</span>` : `<span class="bg-blue-100 text-blue-800 text-xs px-1.5 py-0.5 rounded-sm font-bold">비갱신형</span>`;
-                                
                                 let typeDisplay = `${c.insuranceType}보험 ${renewalBadge}`;
                                 if (c.insuranceType === '실손') {
                                     const gen = getSilsonGeneration(c.baseDate);
@@ -617,9 +576,7 @@
                                     if (gen === '5세대') genColor = 'bg-purple-100 text-purple-800'; 
                                     typeDisplay = `실손보험 <span class="${genColor} text-xs px-1.5 py-0.5 rounded-sm font-bold">${gen}</span> ${renewalBadge}`;
                                 }
-                                
                                 const computedDate = calculateTargetDate(c.baseDate, c.payPeriod);
-                                
                                 return `
                                     <div class="bg-slate-50 border border-slate-150 rounded-xl p-4 hover:border-indigo-200 transition">
                                         <div class="flex justify-between items-start mb-2.5">
