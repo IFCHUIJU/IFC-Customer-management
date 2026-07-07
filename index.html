@@ -381,6 +381,19 @@
             } else {
                 await addDoc(collection(db, "customers"), customerData);
                 alert('성공적으로 저장되었습니다.');
+
+                // ============================================================
+                // 🌟 [A방법] 실시간 당일 생일 등록 푸시 체크 (여기에 추가되었습니다!)
+                // ============================================================
+                const today = new Date();
+                const todayFormated = today.toISOString().split('T')[0]; // "2026-07-07" 형태
+                const todayMMDD = todayFormated.substring(5, 10); // "07-07" 형태
+
+                // 방금 등록한 고객의 생일과 오늘 날짜(월-일)가 같다면 즉시 푸시 알림 발송!
+                if (birthdateInput && birthdateInput.substring(5, 10) === todayMMDD) {
+                    sendWebPushNotification('🎂 당일 생일 등록 알림', `${customerData.name} 고객님의 생일 당일입니다! 🎉`);
+                }
+                // ============================================================
             }
             resetFormState();
             window.switchTab('list');
