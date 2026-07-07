@@ -170,23 +170,31 @@
 
         if ('Notification' in window && Notification.permission === 'default') { Notification.requestPermission(); }
 
+        // 🌟 이 부분을 찾아서 아래 코드로 통째로 교체해 주세요!
         document.getElementById('btnEnableNotification').addEventListener('click', () => {
             if (!('Notification' in window)) { alert('이 브라우저는 알림 기능을 지원하지 않습니다.'); return; }
-            Notification.requestPermission().then(permission => {
+            Notification.requestPermission().then(async (permission) => { // 🌟 여기에 async를 추가했습니다!
                 if (permission === 'granted') {
-			try {
-                // 🌟 1단계에서 복사한 본인의 VAPID Key를 여기에 넣습니다.
-                const currentToken = await getToken(messaging, { vapidKey: BGX-kCOXEZnIv4U2kSQ2-_enDFydI6mioyNkWSNAnVLlRYbt2yPwNGNgdkPhZR5o14ridPo81mGjdxab_kWNtWQ });
+                    try {
+                        // 🌟 본인의 VAPID Key를 문자열 감싸기('') 형태로 정확히 지정했습니다.
+                        const currentToken = await getToken(messaging, { vapidKey: 'BGX-kCOXEZnIv4U2kSQ2-_enDFydI6mioyNkWSNAnVLlRYbt2yPwNGNgdkPhZR5o14ridPo81mGjdxab_kWNtWQ' });
 
-                if (currentToken && currentUser) {
-                    // 데이터베이스에 유저 ID와 스마트폰 토큰 주소를 저장합니다.
-                    await addDoc(collection(db, "user_tokens"), {
-                        uid: currentUser.uid,
-                        token: currentToken,
-                        createdAt: new Date()
-                    });
-                    alert('✅ 스마트폰 알림 권한이 성공적으로 허용되었습니다!\n이제 스마트폰 [설정] -> [알림] 메뉴에서 이 앱의 목록을 확인하실 수 있습니다.');
-                    document.getElementById('notificationPromptBar').classList.add('hidden');
+                        if (currentToken && currentUser) {
+                            // 데이터베이스에 유저 ID와 스마트폰 토큰 주소를 저장합니다.
+                            await addDoc(collection(db, "user_tokens"), {
+                                uid: currentUser.uid,
+                                token: currentToken,
+                                createdAt: new Date()
+                            });
+                            alert('✅ 스마트폰 알림 권한이 성공적으로 허용되었습니다!\n이제 스마트폰 [설정] -> [알림] 메뉴에서 이 앱의 목록을 확인하실 수 있습니다.');
+                            document.getElementById('notificationPromptBar').classList.add('hidden');
+                        } else {
+                            alert('토큰을 가져오지 못했습니다. 로그인 상태를 확인하거나 다시 시도해 주세요.');
+                        }
+                    } catch (err) {
+                        console.error('토큰 획득 중 오류 발생:', err);
+                        alert('알림 등록 중 오류가 발생했습니다.');
+                    }
                 } else if (permission === 'denied') {
                     alert('❌ 알림 권한이 차단되었습니다.\n스마트폰 설정이나 브라우저 주소창 왼쪽의 자물쇠 아이콘을 눌러 알림 권한을 직접 허용으로 변경해 주셔야 합니다.');
                 } else {
