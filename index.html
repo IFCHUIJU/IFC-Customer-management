@@ -147,6 +147,7 @@
         import { initializeApp } from "https://www.gstatic.com/firebasejs/10.12.0/firebase-app.js";
         import { getAuth, signInWithEmailAndPassword, createUserWithEmailAndPassword, signOut, onAuthStateChanged } from "https://www.gstatic.com/firebasejs/10.12.0/firebase-auth.js";
         import { getFirestore, collection, addDoc, updateDoc, deleteDoc, doc, onSnapshot, query, where } from "https://www.gstatic.com/firebasejs/10.12.0/firebase-firestore.js";
+	import { getMessaging, getToken } from "https://www.gstatic.com/firebasejs/10.12.0/firebase-messaging.js";
 
         const firebaseConfig = {
             apiKey: "AIzaSyBNp-ZFEUjF_QoYG7OaEWB234-hC8hj8Fc",
@@ -161,6 +162,7 @@
         const app = initializeApp(firebaseConfig);
         const auth = getAuth(app);
         const db = getFirestore(app);
+	const messaging = getMessaging(app);
 
         let currentUser = null;
         let customers = [];
@@ -172,6 +174,17 @@
             if (!('Notification' in window)) { alert('이 브라우저는 알림 기능을 지원하지 않습니다.'); return; }
             Notification.requestPermission().then(permission => {
                 if (permission === 'granted') {
+			try {
+                // 🌟 1단계에서 복사한 본인의 VAPID Key를 여기에 넣습니다.
+                const currentToken = await getToken(messaging, { vapidKey: BGX-kCOXEZnIv4U2kSQ2-_enDFydI6mioyNkWSNAnVLlRYbt2yPwNGNgdkPhZR5o14ridPo81mGjdxab_kWNtWQ });
+
+                if (currentToken && currentUser) {
+                    // 데이터베이스에 유저 ID와 스마트폰 토큰 주소를 저장합니다.
+                    await addDoc(collection(db, "user_tokens"), {
+                        uid: currentUser.uid,
+                        token: currentToken,
+                        createdAt: new Date()
+                    });
                     alert('✅ 스마트폰 알림 권한이 성공적으로 허용되었습니다!\n이제 스마트폰 [설정] -> [알림] 메뉴에서 이 앱의 목록을 확인하실 수 있습니다.');
                     document.getElementById('notificationPromptBar').classList.add('hidden');
                 } else if (permission === 'denied') {
