@@ -375,7 +375,7 @@
                 baseDate: baseDateInput
             };
 
-            if (editId !== null) {
+if (editId !== null) {
                 await updateDoc(doc(db, "customers", editId), customerData);
                 alert('수정 완료되었습니다.');
             } else {
@@ -383,15 +383,42 @@
                 alert('성공적으로 저장되었습니다.');
 
                 // ============================================================
-                // 🌟 [A방법] 실시간 당일 생일 등록 푸시 체크 (여기에 추가되었습니다!)
+                // 🚀 [FCM 클라우드 기반] 오프라인 스마트폰 실시간 푸시 쏘기
                 // ============================================================
                 const today = new Date();
-                const todayFormated = today.toISOString().split('T')[0]; // "2026-07-07" 형태
-                const todayMMDD = todayFormated.substring(5, 10); // "07-07" 형태
+                const todayFormated = today.toISOString().split('T')[0]; 
+                const todayMMDD = todayFormated.substring(5, 10); 
 
-                // 방금 등록한 고객의 생일과 오늘 날짜(월-일)가 같다면 즉시 푸시 알림 발송!
+                // 오늘 가입한 고객이 오늘 생일인 경우에만 작동합니다.
                 if (birthdateInput && birthdateInput.substring(5, 10) === todayMMDD) {
-                    sendWebPushNotification('🎂 당일 생일 등록 알림', `${customerData.name} 고객님의 생일 당일입니다! 🎉`);
+                    try {
+                        // 1. Firebase Firestore 라이브러리에서 필요한 모듈을 임시로 가져옵니다.
+                        const { getDocs } = await import("https://www.gstatic.com/firebasejs/10.12.0/firebase-firestore.js");
+
+                        // 2. 현재 로그인한 유저의 uid와 일치하는 스마트폰 알림 주소(토큰)들을 조회합니다.
+                        const tokenQuery = query(collection(db, "user_tokens"), where("uid", "==", currentUser.uid));
+                        const tokenSnapshot = await getDocs(tokenQuery);
+                        
+                        const tokens = [];
+                        tokenSnapshot.forEach(doc => {
+                            if (doc.data().token) tokens.push(doc.data().token);
+                        });
+
+                        // 3. 저장된 스마트폰 주소(토큰)들이 존재한다면 Vercel 서버(FCM)를 깨워 푸시를 전송합니다.
+                        if (tokens.length > 0) {
+                            await fetch('/api/cron-push', {
+                                method: 'POST',
+                                headers: { 'Content-Type': 'application/json' },
+                                body: JSON.stringify({
+                                    tokens: tokens, // 알림을 전송받을 스마트폰 주소록들
+                                    title: '🎂 당일 생일 등록 알림',
+                                    body: `${customerData.name} 고객님의 생일 당일입니다! 🎉`
+                                })
+                            });
+                        }
+                    } catch (pushErr) {
+                        console.error("오프라인 푸시 서버 전송 실패:", pushErr);
+                    }
                 }
                 // ============================================================
             }
