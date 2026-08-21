@@ -396,7 +396,7 @@
         baseDate: baseDateInput
     };
 
-    if (editId !== null) {
+   if (editId !== null) {
         await updateDoc(doc(db, "customers", editId), customerData);
         alert('수정 완료되었습니다.');
     } else {
@@ -428,56 +428,34 @@
             isAnniversary = (passedDays > 0 && passedDays % 365 === 0);
         }
 
-        // 알림 목록 수집 (독립된 배열로 관리하여 생일과 D-day 알림이 모두 발송되도록 수정)
-        const notificationsToSend = [];
-
+       const notificationsToSend = [];
         if (isBirthToday) {
-            notificationsToSend.push({
-                title: '🎂 당일 생일 알림',
-                body: `${customerData.name} 고객님의 생일 당일입니다! 🎉`
-            });
+            notificationsToSend.push({ title: '🎂 당일 생일 알림', body: `${customerData.name} 고객님의 생일 당일입니다! 🎉` });
         }
         if (isAnniversary) {
-            notificationsToSend.push({
-                title: '📜 가입 주년 기념 알림',
-                body: `${customerData.name} 고객님의 보험 가입 ${Math.floor(passedDays / 365)}주년입니다!`
-            });
+            notificationsToSend.push({ title: '📜 가입 주년 기념 알림', body: `${customerData.name} 고객님의 보험 가입 주년입니다!` });
         }
         if (is100Days) {
-            notificationsToSend.push({
-                title: '🎉 가입 D-day 알림',
-                body: `${customerData.name} 고객님의 가입 ${passedDays}일째 되는 날입니다!`
-            });
+            notificationsToSend.push({ title: '🎉 가입 D-day 알림', body: `${customerData.name} 고객님의 가입 ${passedDays}일째 되는 날입니다!` });
         }
 
         if (notificationsToSend.length > 0) {
-            try {
-                // DB에서 중복 제거된 토큰 목록 가져오기
-                const tokenQuery = query(collection(db, "user_tokens"), where("uid", "==", currentUser.uid));
-                const tokenSnapshot = await getDocs(tokenQuery);
-                
-                // Set을 활용하여 완전한 중복 토큰 제거
-                const tokensSet = new Set();
-                tokenSnapshot.forEach(doc => {
-                    if (doc.data().token) tokensSet.add(doc.data().token);
-                });
-                const uniqueTokens = Array.from(tokensSet);
+            const tokenQuery = query(collection(db, "user_tokens"), where("uid", "==", currentUser.uid));
+            const tokenSnapshot = await getDocs(tokenQuery);
+            const uniqueTokens = Array.from(new Set(tokenSnapshot.docs.map(doc => doc.data().token).filter(Boolean)));
 
-                if (uniqueTokens.length > 0) {
-                    for (const notif of notificationsToSend) {
-                        await fetch('https://ifc-customer-management.vercel.app/api/cron-push', {
-                            method: 'POST',
-                            headers: { 'Content-Type': 'application/json' },
-                            body: JSON.stringify({
-                                tokens: uniqueTokens,
-                                title: notif.title,
-                                body: notif.body
-                            })
-                        });
-                    }
+            if (uniqueTokens.length > 0) {
+                for (const notif of notificationsToSend) {
+                    await fetch('https://ifc-customer-management.vercel.app/api/cron-push', {
+                        method: 'POST',
+                        headers: { 'Content-Type': 'application/json' },
+                        body: JSON.stringify({
+                            tokens: uniqueTokens,
+                            title: notif.title,
+                            body: notif.body
+                        })
+                    });
                 }
-            } catch (pushErr) {
-                console.error("오프라인 푸시 서버 전송 실패:", pushErr);
             }
         }
     }
