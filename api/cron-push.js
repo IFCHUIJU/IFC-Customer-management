@@ -17,7 +17,7 @@ const messaging = admin.messaging();
 
 export default async function handler(req, res) {
     // ============================================================
-    // 🌟 [추가됨] 1. PC에서 실시간으로 푸시 요청을 보냈을 때 (POST)
+    // 🌟 1. PC에서 실시간으로 푸시 요청을 보냈을 때 (POST)
     // ============================================================
     if (req.method === 'POST') {
         try {
@@ -27,10 +27,13 @@ export default async function handler(req, res) {
                 return res.status(400).json({ success: false, error: '전송할 스마트폰 토큰 주소가 없습니다.' });
             }
 
+            // 💡 [중복 제거 추가] 요청받은 토큰 배열 내 중복값 제거
+            const uniqueTokens = Array.from(new Set(tokens));
+
             // 다중 스마트폰 기기에 실시간 FCM 클라우드 푸시 신호 발송
             const message = {
                 notification: { title, body },
-                tokens: tokens,
+                tokens: uniqueTokens,
             };
 
             const response = await messaging.sendEachForMulticast(message);
@@ -44,7 +47,7 @@ export default async function handler(req, res) {
     }
 
     // ============================================================
-    // ⏰ 2. 기존 로직: 매일 아침 9시 자동 스케줄러 작동할 때 (GET)
+    // ⏰ 2. 매일 아침 9시 자동 스케줄러 작동할 때 (GET)
     // ============================================================
     if (req.method === 'GET') {
         // Vercel 크론잡 보안 검증 (내가 설정한 비밀키와 일치하는지 확인)
@@ -60,23 +63,23 @@ export default async function handler(req, res) {
             const month = String(today.getMonth() + 1).padStart(2, '0');
             const day = String(today.getDate()).padStart(2, '0');
             
-            const todayFormated = `${year}-${month}-${day}`; // "2026-07-09"
-            const todayMMDD = `${month}-${day}`; // "07-09"
+            const todayFormated = `${year}-${month}-${day}`;
+            const todayMMDD = `${month}-${day}`;
 
             console.log(`[크론잡 시작] 기준 날짜: ${todayFormated}`);
 
             // 1. 전체 고객 명단 가져오기
             const customersSnapshot = await db.collection('customers').get();
             
-            // 2. 푸시 주소록(토큰) 전체 가져오기
+            // 2. 푸시 주소록(토큰) 전체 가져오기 및 Set으로 중복 자동 제거
             const tokensSnapshot = await db.collection('user_tokens').get();
-            const userTokensMap = {}; // { uid: [token1, token2] } 구조로 맵핑
+            const userTokensSetMap = {}; // { uid: Set(token1, token2) }
             
             tokensSnapshot.forEach(doc => {
                 const data = doc.data();
                 if (data.uid && data.token) {
-                    if (!userTokensMap[data.uid]) userTokensMap[data.uid] = [];
-                    userTokensMap[data.uid].push(data.token);
+                    if (!userTokensSetMap[data.uid]) userTokensSetMap[data.uid] = new Set();
+                    userTokensSetMap[data.uid].add(data.token);
                 }
             });
 
@@ -85,9 +88,9 @@ export default async function handler(req, res) {
             // 3. 오늘 알림 대상 고객 선별 및 발송
             for (const doc of customersSnapshot.docs) {
                 const customer = doc.data();
-                const userTokens = userTokensMap[customer.uid] || [];
+                const userTokens = userTokensSetMap[customer.uid] ? Array.from(userTokensSetMap[customer.uid]) : [];
                 
-                if (userTokens.length === 0) continue; // 전송할 스마트폰 기기가 없으면 패스
+                if (userTokens.length === 0) continue;
 
                 let isTarget = false;
                 let alertTitle = '';
@@ -102,16 +105,16 @@ export default async function handler(req, res) {
                     }
                 }
 
-                // ② 보험 가입일 디데이 체크 (100일, 1년 단위 등)
+                // ② 보험 가입일 디데이 체크 (100일 단위 및 1년 단위)
                 if (!isTarget && customer.baseDate) {
                     const startDate = new Date(customer.baseDate);
                     const timeDiff = today.getTime() - startDate.getTime();
-                    const daysDiff = Math.floor(timeDiff / (1000 * 60 * 60 * 24)); // 지나온 날짜수 계산
+                    const daysDiff = Math.floor(timeDiff / (1000 * 60 * 60 * 24));
 
-                    if (daysDiff === 100) {
+                    if (daysDiff > 0 && daysDiff % 100 === 0) {
                         isTarget = true;
-                        alertTitle = '💯 가입 100일 기념 알림';
-                        alertBody = `${customer.name} 고객님이 가입하신 지 100일째 되는 날입니다! ✨`;
+                        alertTitle = `🎉 가입 ${daysDiff}일 기념 알림`;
+                        alertBody = `${customer.name} 고객님이 가입하신 지 ${daysDiff}일째 되는 날입니다! ✨`;
                     } else if (daysDiff > 0 && daysDiff % 365 === 0) {
                         const years = daysDiff / 365;
                         isTarget = true;
@@ -139,6 +142,5 @@ export default async function handler(req, res) {
         }
     }
 
-    // 허용되지 않은 다른 통신 방식 필터링
     return res.status(405).json({ success: false, error: '허용되지 않은 요청 메서드입니다.' });
 }
