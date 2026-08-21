@@ -208,12 +208,6 @@ document.getElementById('btnEnableNotification').addEventListener('click', () =>
             });
         });
 
-        if ('serviceWorker' in navigator) {
-            window.addEventListener('load', () => { 
-                navigator.serviceWorker.register('firebase-messaging-sw.js').catch(err => console.log(err)); 
-            });
-        }
-
         const authContainer = document.getElementById('authContainer');
         const appContainer = document.getElementById('appContainer');
 
@@ -543,7 +537,7 @@ if (editId !== null) {
                     if (remains100 === 0) {
                         const pushKey100 = `push_milestone_${c.id}_${next100Goal}`;
                         if (!dismissed[pushKey100]) {
-                            sendWebPushNotification("D-day 당일 알림", `${c.name}님의 가입 ${next100Goal}일 당일입니다! 🎉`);
+                            //sendWebPushNotification("D-day 당일 알림", `${c.name}님의 가입 ${next100Goal}일 당일입니다! 🎉`);
                             dismissed[pushKey100] = true;
                             localStorage.setItem('dismissedAlerts', JSON.stringify(dismissed));
                         }
@@ -563,7 +557,7 @@ if (editId !== null) {
                     if (remainsYear === 0) {
                         const pushKeyYear = `push_anniversary_${c.id}_${nextYearGoal}`;
                         if (!dismissed[pushKeyYear]) {
-                            sendWebPushNotification("D-day 당일 알림", `${c.name}님의 보험 가입 ${nextYearGoal}주년 당일입니다! 📜`);
+                            //sendWebPushNotification("D-day 당일 알림", `${c.name}님의 보험 가입 ${nextYearGoal}주년 당일입니다! 📜`);
                             dismissed[pushKeyYear] = true;
                             localStorage.setItem('dismissedAlerts', JSON.stringify(dismissed));
                         }
