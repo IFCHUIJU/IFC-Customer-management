@@ -600,21 +600,27 @@ if (editId !== null) {
             updateAppBadges();
         }
 
-        function calculateDynamicDdays(baseDateStr) {
-            const baseDate = parseLocalDate(baseDateStr); const today = new Date(); today.setHours(0,0,0,0);
-            
-            // 🌟 5월 13일 입력 시 오늘 100일이 되도록 순수 일수 차이로 변경
-            const passedDays = Math.round((today - baseDate) / (1000 * 60 * 60 * 24));
+       function calculateDynamicDdays(baseDateStr) {
+            const baseDate = parseLocalDate(baseDateStr); 
+            baseDate.setHours(0, 0, 0, 0); // 가입일 시분초 초기화
+
+            const today = new Date(); 
+            today.setHours(0, 0, 0, 0); // 오늘 날짜 시분초 완전 초기화
+
+            // 순수 날짜(일수) 차이 계산 (+1을 더해 당일부터 1일차로 계산)
+            const diffTime = today.getTime() - baseDate.getTime();
+            const passedDays = Math.floor(diffTime / (1000 * 60 * 60 * 24)) + 1;
             
             let next100Goal = Math.max(100, Math.ceil(passedDays / 100) * 100);
-            if (passedDays === 0) next100Goal = 100; // 가입 당일 예외 처리
             
-            const targetDate100 = new Date(baseDate); targetDate100.setDate(baseDate.getDate() + next100Goal);
-            const remains100 = Math.round((targetDate100 - today) / (1000 * 60 * 60 * 24));
+            const targetDate100 = new Date(baseDate); 
+            targetDate100.setDate(baseDate.getDate() + next100Goal - 1);
+            const remains100 = Math.ceil((targetDate100 - today) / (1000 * 60 * 60 * 24));
             
             let nextYearGoal = Math.max(1, Math.ceil(passedDays / 365));
-            const targetDateYear = new Date(baseDate); targetDateYear.setFullYear(baseDate.getFullYear() + nextYearGoal);
-            const remainsYear = Math.round((targetDateYear - today) / (1000 * 60 * 60 * 24));
+            const targetDateYear = new Date(baseDate); 
+            targetDateYear.setFullYear(baseDate.getFullYear() + nextYearGoal);
+            const remainsYear = Math.ceil((targetDateYear - today) / (1000 * 60 * 60 * 24));
 
             const format = (remains, title, targetDate) => {
                 let label = remains > 0 ? `D-${remains}` : (remains === 0 ? '★ 오늘 ★' : '달성');
