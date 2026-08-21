@@ -400,7 +400,7 @@ if (editId !== null) {
                 // 1. 생일 조건
                 const isBirthToday = birthdateInput && birthdateInput.substring(5, 10) === todayMMDD;
                 
-                // 2. D-Day 조건 (가입 당일 포함 100일 계산 방식)
+                // 2. D-Day 조건 (2026-05-13 입력 시 오늘 정확히 100일 차이)
                 let is100Days = false;
                 let isAnniversary = false;
                 let passedDays = 0;
@@ -409,14 +409,11 @@ if (editId !== null) {
                     const baseDateObj = parseLocalDate(baseDateInput);
                     baseDateObj.setHours(0, 0, 0, 0);
                     
-                    // 가입 당일을 1일로 포함한 경과 일수 계산
-                    const diffDays = Math.round((today - baseDateObj) / (1000 * 60 * 60 * 24));
-                    passedDays = diffDays + 1; // 2026-05-14 입력 시 오늘(08-21)은 passedDays = 100일
+                    // 순수 일수 차이 계산 (05-13 입력 시 오늘 08-21은 100일)
+                    passedDays = Math.round((today - baseDateObj) / (1000 * 60 * 60 * 24));
 
-                    // 100일, 200일 등 100의 배수일 때
                     is100Days = (passedDays > 0 && passedDays % 100 === 0);
-                    // 1주년, 2주년 등 (365일 단위)
-                    isAnniversary = (passedDays > 1 && (passedDays - 1) % 365 === 0);
+                    isAnniversary = (passedDays > 0 && passedDays % 365 === 0);
                 }
 
                 // 생일이거나 D-Day에 해당하는 경우 푸시 발송
@@ -441,7 +438,7 @@ if (editId !== null) {
                                 bodyText = `${customerData.name} 고객님의 가입 ${passedDays}일째 되는 날입니다!`;
                             } else if (isAnniversary) {
                                 titleText = '📜 가입 주년 기념 알림';
-                                bodyText = `${customerData.name} 고객님의 보험 가입 ${(passedDays - 1) / 365}주년입니다!`;
+                                bodyText = `${customerData.name} 고객님의 보험 가입 ${passedDays / 365}주년입니다!`;
                             }
 
                             await fetch('https://ifc-customer-management.vercel.app/api/cron-push', {
