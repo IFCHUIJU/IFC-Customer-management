@@ -491,12 +491,12 @@ if (editId !== null) {
                         }
                         
                         // 🌟 [추가됨] 생일 당일인 경우 스마트폰 푸시 알림 발송 및 하루 1회 전송 제어
-                        const pushKeyBirth = `push_birth_${c.id}_${today.getFullYear()}`;
-                        if (!dismissed[pushKeyBirth]) {
-                            sendWebPushNotification("🎂 생일 축하 알림", `${c.name} 고객님의 생일 당일입니다! 🎉`);
-                            dismissed[pushKeyBirth] = true;
-                            localStorage.setItem('dismissedAlerts', JSON.stringify(dismissed));
-                        }
+                        //const pushKeyBirth = `push_birth_${c.id}_${today.getFullYear()}`;
+                        //if (!dismissed[pushKeyBirth]) {
+                        //    sendWebPushNotification("🎂 생일 축하 알림", `${c.name} 고객님의 생일 당일입니다! 🎉`);
+                        //    dismissed[pushKeyBirth] = true;
+                        //    localStorage.setItem('dismissedAlerts', JSON.stringify(dismissed));
+                        // }
                     }
                 }
 
