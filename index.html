@@ -432,9 +432,13 @@
         if (isBirthToday) {
             notificationsToSend.push({ title: '🎂 당일 생일 알림', body: `${customerData.name} 고객님의 생일 당일입니다! 🎉` });
         }
-        if (isAnniversary) {
-            notificationsToSend.push({ title: '📜 가입 주년 기념 알림', body: `${customerData.name} 고객님의 보험 가입 주년입니다!` });
-        }
+       if (isAnniversary) {
+    const passedYears = Math.round(passedDays / 365);
+    notificationsToSend.push({ 
+        title: '📜 가입 주년 기념 알림', 
+        body: `${customerData.name} 고객님의 보험 가입 ${passedYears}주년입니다! 🎉` 
+    });
+}
         if (is100Days) {
             notificationsToSend.push({ title: '🎉 가입 D-day 알림', body: `${customerData.name} 고객님의 가입 ${passedDays}일째 되는 날입니다!` });
         }
