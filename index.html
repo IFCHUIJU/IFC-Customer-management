@@ -610,49 +610,62 @@ if (editId !== null) {
         }
 
        function calculateDynamicDdays(baseDateStr) {
-            const [y, m, d] = baseDateStr.split('-').map(Number);
-            const baseUtc = Date.UTC(y, m - 1, d);
-            
-            const now = new Date();
-            const todayUtc = Date.UTC(now.getFullYear(), now.getMonth(), now.getDate());
+    const [y, m, d] = baseDateStr.split('-').map(Number);
+    const baseUtc = Date.UTC(y, m - 1, d);
+    
+    const now = new Date();
+    const todayUtc = Date.UTC(now.getFullYear(), now.getMonth(), now.getDate());
 
-            // 5월 13일 -> 8월 21일 = 순수 100일 차이
-            const passedDays = Math.round((todayUtc - baseUtc) / (1000 * 60 * 60 * 24));
+    // 가입일로부터 오늘까지 경과한 pure 일수
+    const passedDays = Math.round((todayUtc - baseUtc) / (1000 * 60 * 60 * 24));
 
-            // 오늘이 딱 100일째 당일인 경우 next100Goal을 100으로 고정
-            let next100Goal = (passedDays > 0 && passedDays % 100 === 0) 
-                ? passedDays 
-                : (Math.floor((passedDays < 0 ? 0 : passedDays) / 100) + 1) * 100;
+    // 목표 100일 단위 계산 (오늘이 100일째면 목표는 100일, 101일째면 목표는 200일)
+    let next100Goal;
+    if (passedDays <= 0) {
+        next100Goal = 100;
+    } else if (passedDays % 100 === 0) {
+        next100Goal = passedDays;
+    } else {
+        next100Goal = (Math.floor(passedDays / 100) + 1) * 100;
+    }
 
-            const targetDate100 = new Date(baseUtc);
-            targetDate100.setUTCDate(targetDate100.getUTCDate() + next100Goal);
+    // 목표 100일의 날짜 구하기 (가입일 + next100Goal 일)
+    const targetDate100 = new Date(baseUtc);
+    targetDate100.setUTCDate(targetDate100.getUTCDate() + next100Goal);
 
-            const remains100 = Math.round((targetDate100 - todayUtc) / (1000 * 60 * 60 * 24));
+    // 오늘로부터 목표일시까지 남은 일수 계산
+    const remains100 = Math.round((targetDate100 - todayUtc) / (1000 * 60 * 60 * 24));
 
-            let nextYearGoal = (passedDays > 0 && passedDays % 365 === 0)
-                ? Math.max(1, Math.floor(passedDays / 365))
-                : Math.max(1, Math.ceil((passedDays === 0 ? 1 : passedDays) / 365));
+    // 목표 주년(년 단위) 계산
+    let nextYearGoal;
+    if (passedDays <= 0) {
+        nextYearGoal = 1;
+    } else if (passedDays % 365 === 0) {
+        nextYearGoal = Math.floor(passedDays / 365);
+    } else {
+        nextYearGoal = Math.floor(passedDays / 365) + 1;
+    }
 
-            const targetDateYear = new Date(baseUtc);
-            targetDateYear.setUTCFullYear(targetDateYear.getUTCFullYear() + nextYearGoal);
-            const remainsYear = Math.round((targetDateYear - todayUtc) / (1000 * 60 * 60 * 24));
+    const targetDateYear = new Date(baseUtc);
+    targetDateYear.setUTCFullYear(targetDateYear.getUTCFullYear() + nextYearGoal);
+    const remainsYear = Math.round((targetDateYear - todayUtc) / (1000 * 60 * 60 * 24));
 
-            const format = (remains, title, targetDate) => {
-                let label = remains > 0 ? `D-${remains}` : (remains === 0 ? '★ 오늘 ★' : '달성');
-                let statusClass = remains > 0 ? 'bg-slate-100 text-slate-700' : (remains === 0 ? 'bg-red-500 text-white animate-pulse' : 'bg-emerald-100 text-emerald-700 opacity-60');
-                const mStr = String(targetDate.getUTCMonth() + 1).padStart(2, '0');
-                const dStr = String(targetDate.getUTCDate()).padStart(2, '0');
-                return { title, date: `${mStr}/${dStr}`, label, statusClass };
-            };
+    const format = (remains, title, targetDate) => {
+        let label = remains > 0 ? `D-${remains}` : (remains === 0 ? '★ 오늘 ★' : '달성');
+        let statusClass = remains > 0 ? 'bg-slate-100 text-slate-700' : (remains === 0 ? 'bg-red-500 text-white animate-pulse' : 'bg-emerald-100 text-emerald-700 opacity-60');
+        const mStr = String(targetDate.getUTCMonth() + 1).padStart(2, '0');
+        const dStr = String(targetDate.getUTCDate()).padStart(2, '0');
+        return { title, date: `${mStr}/${dStr}`, label, statusClass };
+    };
 
-            return { 
-                passedDays, 
-                ddayResults: [
-                    format(remains100, `${next100Goal}일`, targetDate100), 
-                    format(remainsYear, `${nextYearGoal}년 주년`, targetDateYear)
-                ] 
-            };
-        }
+    return { 
+        passedDays, 
+        ddayResults: [
+            format(remains100, `${next100Goal}일`, targetDate100), 
+            format(remainsYear, `${nextYearGoal}년 주년`, targetDateYear)
+        ] 
+    };
+}
 
         function renderCustomers() {
             const listContainer = document.getElementById('customerList');
