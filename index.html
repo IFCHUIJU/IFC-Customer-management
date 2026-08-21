@@ -146,7 +146,7 @@
     <script type="module">
         import { initializeApp } from "https://www.gstatic.com/firebasejs/10.12.0/firebase-app.js";
         import { getAuth, signInWithEmailAndPassword, createUserWithEmailAndPassword, signOut, onAuthStateChanged } from "https://www.gstatic.com/firebasejs/10.12.0/firebase-auth.js";
-        import { getFirestore, collection, addDoc, updateDoc, deleteDoc, doc, onSnapshot, query, where } from "https://www.gstatic.com/firebasejs/10.12.0/firebase-firestore.js";
+        import { getFirestore, collection, addDoc, updateDoc, deleteDoc, doc, onSnapshot, query, where, getDocs } from "https://www.gstatic.com/firebasejs/10.12.0/firebase-firestore.js";
 	import { getMessaging, getToken } from "https://www.gstatic.com/firebasejs/10.12.0/firebase-messaging.js";
 
         const firebaseConfig = {
@@ -199,14 +199,21 @@
                         });
 
                         if (currentToken && currentUser) {
-                            await addDoc(collection(db, "user_tokens"), {
-                                uid: currentUser.uid,
-                                token: currentToken,
-                                createdAt: new Date()
-                            });
-                            alert('✅ 스마트폰 알림 권한이 성공적으로 허용되었습니다!\n이제 스마트폰 [설정] -> [알림] 메뉴에서 이 앱의 목록을 확인하실 수 있습니다.');
-                            document.getElementById('notificationPromptBar').classList.add('hidden');
-                        } else {
+    // 💡 [수정] 이미 등록된 토큰인지 DB 조회 후 저장 (중복 방지)
+    const tokenQuery = query(collection(db, "user_tokens"), where("uid", "==", currentUser.uid), where("token", "==", currentToken));
+    const tokenSnapshot = await getDocs(tokenQuery);
+
+    if (tokenSnapshot.empty) {
+        await addDoc(collection(db, "user_tokens"), {
+            uid: currentUser.uid,
+            token: currentToken,
+            createdAt: new Date()
+        });
+    }
+
+    alert('✅ 스마트폰 알림 권한이 성공적으로 허용되었습니다!\n이제 스마트폰 [설정] -> [알림] 메뉴에서 이 앱의 목록을 확인하실 수 있습니다.');
+    document.getElementById('notificationPromptBar').classList.add('hidden');
+}else {
                             alert('토큰을 가져오지 못했습니다. 로그인 상태를 확인하거나 다시 시도해 주세요.');
                         }
                     } catch (err) {
@@ -423,41 +430,46 @@ if (editId !== null) {
                     isAnniversary = (passedDays > 0 && passedDays % 365 === 0);
                 }
 
-                // 생일이거나 D-Day에 해당하는 경우 푸시 발송
-                if (isBirthToday || is100Days || isAnniversary) {
-                    try {
-                        const { getDocs } = await import("https://www.gstatic.com/firebasejs/10.12.0/firebase-firestore.js");
-
-                        const tokenQuery = query(collection(db, "user_tokens"), where("uid", "==", currentUser.uid));
-                        const tokenSnapshot = await getDocs(tokenQuery);
+               if (isBirthToday || is100Days || isAnniversary) {
+    try {
+        // 💡 import 줄을 지우고 바로 실행합니다.
+        const tokenQuery = query(collection(db, "user_tokens"), where("uid", "==", currentUser.uid));
+        const tokenSnapshot = await getDocs(tokenQuery);
                         
                         const tokens = [];
                         tokenSnapshot.forEach(doc => {
                             if (doc.data().token) tokens.push(doc.data().token);
                         });
 
-                        if (tokens.length > 0) {
-                            let titleText = '🎂 당일 생일 알림';
-                            let bodyText = `${customerData.name} 고객님의 생일 당일입니다! 🎉`;
+                       if (tokens.length > 0) {
+    let titleText = '';
+    let bodyText = '';
 
-                            if (is100Days) {
-                                titleText = '🎉 가입 D-day 알림';
-                                bodyText = `${customerData.name} 고객님의 가입 ${passedDays}일째 되는 날입니다!`;
-                            } else if (isAnniversary) {
-                                titleText = '📜 가입 주년 기념 알림';
-                                bodyText = `${customerData.name} 고객님의 보험 가입 ${passedDays / 365}주년입니다!`;
-                            }
+    // 💡 [수정] 우선순위에 따라 단 1개의 알림 문구만 생성
+    if (isBirthToday) {
+        titleText = '🎂 당일 생일 알림';
+        bodyText = `${customerData.name} 고객님의 생일 당일입니다! 🎉`;
+    } else if (isAnniversary) {
+        titleText = '📜 가입 주년 기념 알림';
+        bodyText = `${customerData.name} 고객님의 보험 가입 ${passedDays / 365}주년입니다!`;
+    } else if (is100Days) {
+        titleText = '🎉 가입 D-day 알림';
+        bodyText = `${customerData.name} 고객님의 가입 ${passedDays}일째 되는 날입니다!`;
+    }
 
-                            await fetch('https://ifc-customer-management.vercel.app/api/cron-push', {
-                                method: 'POST',
-                                headers: { 'Content-Type': 'application/json' },
-                                body: JSON.stringify({
-                                    tokens: tokens,
-                                    title: titleText,
-                                    body: bodyText
-                                })
-                            });
-                        }
+    // 조건에 부합하는 타이틀이 있을 때만 1회 호출
+    if (titleText) {
+        await fetch('https://ifc-customer-management.vercel.app/api/cron-push', {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({
+                tokens: tokens,
+                title: titleText,
+                body: bodyText
+            })
+        });
+    }
+}
                     } catch (pushErr) {
                         console.error("오프라인 푸시 서버 전송 실패:", pushErr);
                     }
