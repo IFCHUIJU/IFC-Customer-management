@@ -389,20 +389,27 @@ if (editId !== null) {
                 await addDoc(collection(db, "customers"), customerData);
                 alert('성공적으로 저장되었습니다.');
 
-                // ============================================================
-                // 🚀 [FCM 클라우드 기반] 오프라인 스마트폰 실시간 푸시 쏘기
+               // ============================================================
+                // 🚀 [FCM 클라우드 기반] 오프라인 스마트폰 실시간 푸시 쏘기 (생일 & D-Day 통합)
                 // ============================================================
                 const today = new Date();
+                today.setHours(0, 0, 0, 0);
                 const todayFormated = today.toISOString().split('T')[0]; 
                 const todayMMDD = todayFormated.substring(5, 10); 
 
-                // 오늘 가입한 고객이 오늘 생일인 경우에만 작동합니다.
-                if (birthdateInput && birthdateInput.substring(5, 10) === todayMMDD) {
+                // 1. 생일 및 D-Day 조건 계산
+                const isBirthToday = birthdateInput && birthdateInput.substring(5, 10) === todayMMDD;
+                
+                const baseDateObj = parseLocalDate(baseDateInput);
+                const passedDays = Math.floor((today - baseDateObj) / (1000 * 60 * 60 * 24)) + 1;
+                const is100Days = (passedDays > 0 && passedDays % 100 === 0); // 100일, 200일 등
+                const isAnniversary = (passedDays > 300 && passedDays % 365 === 0); // 1주년, 2주년 등
+
+                // 생일이거나 D-Day에 해당하는 경우 푸시 발송
+                if (isBirthToday || is100Days || isAnniversary) {
                     try {
-                        // 1. Firebase Firestore 라이브러리에서 필요한 모듈을 임시로 가져옵니다.
                         const { getDocs } = await import("https://www.gstatic.com/firebasejs/10.12.0/firebase-firestore.js");
 
-                        // 2. 현재 로그인한 유저의 uid와 일치하는 스마트폰 알림 주소(토큰)들을 조회합니다.
                         const tokenQuery = query(collection(db, "user_tokens"), where("uid", "==", currentUser.uid));
                         const tokenSnapshot = await getDocs(tokenQuery);
                         
@@ -411,15 +418,25 @@ if (editId !== null) {
                             if (doc.data().token) tokens.push(doc.data().token);
                         });
 
-                        // 3. 저장된 스마트폰 주소(토큰)들이 존재한다면 Vercel 서버(FCM)를 깨워 푸시를 전송합니다.
                         if (tokens.length > 0) {
+                            let titleText = '🎂 당일 생일 알림';
+                            let bodyText = `${customerData.name} 고객님의 생일 당일입니다! 🎉`;
+
+                            if (is100Days) {
+                                titleText = '🎉 가입 D-day 알림';
+                                bodyText = `${customerData.name} 고객님의 가입 ${passedDays}일째 되는 날입니다!`;
+                            } else if (isAnniversary) {
+                                titleText = '📜 가입 주년 기념 알림';
+                                bodyText = `${customerData.name} 고객님의 보험 가입 ${passedDays / 365}주년입니다!`;
+                            }
+
                             await fetch('https://ifc-customer-management.vercel.app/api/cron-push', {
                                 method: 'POST',
                                 headers: { 'Content-Type': 'application/json' },
                                 body: JSON.stringify({
-                                    tokens: tokens, // 알림을 전송받을 스마트폰 주소록들
-                                    title: '🎂 당일 생일 등록 알림',
-                                    body: `${customerData.name} 고객님의 생일 당일입니다! 🎉`
+                                    tokens: tokens,
+                                    title: titleText,
+                                    body: bodyText
                                 })
                             });
                         }
