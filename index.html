@@ -193,7 +193,8 @@
                         }
                     } catch (err) {
                         console.error('토큰 획득 중 오류 발생:', err);
-                        alert('알림 등록 중 오류가 발생했습니다.');
+                        alert('알림 등록 오류 원인:\n' + error.message);
+			console.error(error);
                     }
                 } else if (permission === 'denied') {
                     alert('❌ 알림 권한이 차단되었습니다.\n스마트폰 설정이나 브라우저 주소창 왼쪽의 자물쇠 아이콘을 눌러 알림 권한을 직접 허용으로 변경해 주셔야 합니다.');
