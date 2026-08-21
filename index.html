@@ -507,7 +507,8 @@ if (editId !== null) {
 
             customers.forEach(c => {
                 const baseDate = parseLocalDate(c.baseDate);
-                const passedDays = Math.floor((today - baseDate) / (1000 * 60 * 60 * 24)) + 1;
+                // 🌟 5월 13일 입력 시 오늘 딱 100일이 되도록 순수 일수 차이로 변경
+                const passedDays = Math.round((today - baseDate) / (1000 * 60 * 60 * 24));
 
                 if(c.birthdate && c.birthdate !== '미입력') {
                     const birthMMDD = c.birthdate.substring(5, 10);
@@ -517,22 +518,16 @@ if (editId !== null) {
                         if (!dismissed[key]) {
                             alertItems.push({ key, type: 'birth', icon: 'fa-cake-candles text-rose-500', bg: 'bg-rose-50 border-rose-100', text: `🎂 <strong>${c.name}</strong> 고객님 생일 당일입니다!` });
                         }
-                        
-                        // 🌟 [추가됨] 생일 당일인 경우 스마트폰 푸시 알림 발송 및 하루 1회 전송 제어
-                        //const pushKeyBirth = `push_birth_${c.id}_${today.getFullYear()}`;
-                        //if (!dismissed[pushKeyBirth]) {
-                        //    sendWebPushNotification("🎂 생일 축하 알림", `${c.name} 고객님의 생일 당일입니다! 🎉`);
-                        //    dismissed[pushKeyBirth] = true;
-                        //    localStorage.setItem('dismissedAlerts', JSON.stringify(dismissed));
-                        // }
                     }
                 }
 
                 let next100Goal = Math.max(100, Math.ceil(passedDays / 100) * 100);
-                const targetDate100 = new Date(baseDate); targetDate100.setDate(baseDate.getDate() + next100Goal - 1);
-                const remains100 = Math.floor((targetDate100 - today) / (1000 * 60 * 60 * 24));
+                if (passedDays === 0) next100Goal = 100;
 
-                if (remains100 <= 0) {
+                const targetDate100 = new Date(baseDate); targetDate100.setDate(baseDate.getDate() + next100Goal);
+                const remains100 = Math.round((targetDate100 - today) / (1000 * 60 * 60 * 24));
+
+                if (remains100 <= 0 && passedDays > 0) {
                     const key = `milestone_${c.id}_${next100Goal}`;
                     if (!dismissed[key]) {
                         alertItems.push({ key, type: 'milestone', icon: 'fa-gift text-amber-500', bg: 'bg-amber-50 border-amber-100', text: `🎉 <strong>${c.name}</strong> 고객님 가입 <strong>${next100Goal}일째</strong> 알림입니다.` });
@@ -549,7 +544,7 @@ if (editId !== null) {
 
                 let nextYearGoal = Math.max(1, Math.ceil(passedDays / 365));
                 const targetDateYear = new Date(baseDate); targetDateYear.setFullYear(baseDate.getFullYear() + nextYearGoal);
-                const remainsYear = Math.floor((targetDateYear - today) / (1000 * 60 * 60 * 24));
+                const remainsYear = Math.round((targetDateYear - today) / (1000 * 60 * 60 * 24));
 
                 if (remainsYear <= 0 && today.getFullYear() > baseDate.getFullYear()) {
                     const key = `anniversary_${c.id}_${nextYearGoal}`;
@@ -607,13 +602,19 @@ if (editId !== null) {
 
         function calculateDynamicDdays(baseDateStr) {
             const baseDate = parseLocalDate(baseDateStr); const today = new Date(); today.setHours(0,0,0,0);
-            const passedDays = Math.floor((today - baseDate) / (1000 * 60 * 60 * 24)) + 1;
+            
+            // 🌟 5월 13일 입력 시 오늘 100일이 되도록 순수 일수 차이로 변경
+            const passedDays = Math.round((today - baseDate) / (1000 * 60 * 60 * 24));
+            
             let next100Goal = Math.max(100, Math.ceil(passedDays / 100) * 100);
-            const targetDate100 = new Date(baseDate); targetDate100.setDate(baseDate.getDate() + next100Goal - 1);
-            const remains100 = Math.floor((targetDate100 - today) / (1000 * 60 * 60 * 24));
+            if (passedDays === 0) next100Goal = 100; // 가입 당일 예외 처리
+            
+            const targetDate100 = new Date(baseDate); targetDate100.setDate(baseDate.getDate() + next100Goal);
+            const remains100 = Math.round((targetDate100 - today) / (1000 * 60 * 60 * 24));
+            
             let nextYearGoal = Math.max(1, Math.ceil(passedDays / 365));
             const targetDateYear = new Date(baseDate); targetDateYear.setFullYear(baseDate.getFullYear() + nextYearGoal);
-            const remainsYear = Math.floor((targetDateYear - today) / (1000 * 60 * 60 * 24));
+            const remainsYear = Math.round((targetDateYear - today) / (1000 * 60 * 60 * 24));
 
             const format = (remains, title, targetDate) => {
                 let label = remains > 0 ? `D-${remains}` : (remains === 0 ? '★ 오늘 ★' : '달성');
