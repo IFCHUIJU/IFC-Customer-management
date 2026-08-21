@@ -373,112 +373,117 @@
         document.getElementById('phone').addEventListener('input', (e) => { e.target.value = autoFormatPhone(e.target.value); });
 
         document.getElementById('customerForm').addEventListener('submit', async function(e) {
-            e.preventDefault();
-            if (!currentUser) return;
+    e.preventDefault();
+    if (!currentUser) return;
 
-            const birthdateInput = document.getElementById('birthdate').value.trim();
-            const baseDateInput = document.getElementById('baseDate').value.trim();
-            const dateRegex = /^\d{4}-\d{2}-\d{2}$/;
+    const birthdateInput = document.getElementById('birthdate').value.trim();
+    const baseDateInput = document.getElementById('baseDate').value.trim();
+    const dateRegex = /^\d{4}-\d{2}-\d{2}$/;
+    
+    if (birthdateInput && !dateRegex.test(birthdateInput)) { alert('생년월일 형식을 확인해 주세요.'); return; }
+    if (!dateRegex.test(baseDateInput)) { alert('보험가입일 형식을 확인해 주세요.'); return; }
+
+    const customerData = {
+        uid: currentUser.uid,
+        name: document.getElementById('name').value,
+        birthdate: birthdateInput || '미입력',
+        phone: document.getElementById('phone').value || '미입력',
+        company: document.getElementById('company').value || '미입력',
+        insuranceType: document.getElementById('insuranceType').value,
+        renewalType: document.getElementById('renewalType').value,
+        payPeriod: document.getElementById('payPeriod').value || '',
+        remarks: document.getElementById('remarks').value || '-',
+        baseDate: baseDateInput
+    };
+
+    if (editId !== null) {
+        await updateDoc(doc(db, "customers", editId), customerData);
+        alert('수정 완료되었습니다.');
+    } else {
+        await addDoc(collection(db, "customers"), customerData);
+        alert('성공적으로 저장되었습니다.');
+
+        // ============================================================
+        // 🚀 [FCM 클라우드 기반] 오프라인 스마트폰 실시간 푸시 쏘기
+        // ============================================================
+        const today = new Date();
+        const todayMMDD = `${String(today.getMonth() + 1).padStart(2, '0')}-${String(today.getDate()).padStart(2, '0')}`;
+
+        // 1. 생일 조건 체크 (MM-DD 추출 정확도 개선)
+        const birthMMDD = birthdateInput ? birthdateInput.substring(5, 10) : '';
+        const isBirthToday = (birthMMDD === todayMMDD);
+
+        // 2. D-Day / 주년 조건 체크
+        let is100Days = false;
+        let isAnniversary = false;
+        let passedDays = 0;
+
+        if (baseDateInput) {
+            const baseDateObj = parseLocalDate(baseDateInput);
+            baseDateObj.setHours(0, 0, 0, 0);
+            today.setHours(0, 0, 0, 0);
             
-            if (birthdateInput && !dateRegex.test(birthdateInput)) { alert('생년월일 형식을 확인해 주세요.'); return; }
-            if (!dateRegex.test(baseDateInput)) { alert('보험가입일 형식을 확인해 주세요.'); return; }
+            passedDays = Math.round((today - baseDateObj) / (1000 * 60 * 60 * 24));
+            is100Days = (passedDays > 0 && passedDays % 100 === 0);
+            isAnniversary = (passedDays > 0 && passedDays % 365 === 0);
+        }
 
-            const customerData = {
-                uid: currentUser.uid,
-                name: document.getElementById('name').value,
-                birthdate: birthdateInput || '미입력',
-                phone: document.getElementById('phone').value || '미입력',
-                company: document.getElementById('company').value || '미입력',
-                insuranceType: document.getElementById('insuranceType').value,
-                renewalType: document.getElementById('renewalType').value,
-                payPeriod: document.getElementById('payPeriod').value || '',
-                remarks: document.getElementById('remarks').value || '-',
-                baseDate: baseDateInput
-            };
+        // 알림 목록 수집 (독립된 배열로 관리하여 생일과 D-day 알림이 모두 발송되도록 수정)
+        const notificationsToSend = [];
 
-if (editId !== null) {
-                await updateDoc(doc(db, "customers", editId), customerData);
-                alert('수정 완료되었습니다.');
-            } else {
-                await addDoc(collection(db, "customers"), customerData);
-                alert('성공적으로 저장되었습니다.');
+        if (isBirthToday) {
+            notificationsToSend.push({
+                title: '🎂 당일 생일 알림',
+                body: `${customerData.name} 고객님의 생일 당일입니다! 🎉`
+            });
+        }
+        if (isAnniversary) {
+            notificationsToSend.push({
+                title: '📜 가입 주년 기념 알림',
+                body: `${customerData.name} 고객님의 보험 가입 ${Math.floor(passedDays / 365)}주년입니다!`
+            });
+        }
+        if (is100Days) {
+            notificationsToSend.push({
+                title: '🎉 가입 D-day 알림',
+                body: `${customerData.name} 고객님의 가입 ${passedDays}일째 되는 날입니다!`
+            });
+        }
 
-               // ============================================================
-                // 🚀 [FCM 클라우드 기반] 오프라인 스마트폰 실시간 푸시 쏘기 (생일 & D-Day 통합)
-                // ============================================================
-                const today = new Date();
-                today.setHours(0, 0, 0, 0);
-                const todayFormated = today.toISOString().split('T')[0]; 
-                const todayMMDD = todayFormated.substring(5, 10); 
-
-                // 1. 생일 조건
-                const isBirthToday = birthdateInput && birthdateInput.substring(5, 10) === todayMMDD;
+        if (notificationsToSend.length > 0) {
+            try {
+                // DB에서 중복 제거된 토큰 목록 가져오기
+                const tokenQuery = query(collection(db, "user_tokens"), where("uid", "==", currentUser.uid));
+                const tokenSnapshot = await getDocs(tokenQuery);
                 
-                // 2. D-Day 조건 (2026-05-13 입력 시 오늘 정확히 100일 차이)
-                let is100Days = false;
-                let isAnniversary = false;
-                let passedDays = 0;
+                // Set을 활용하여 완전한 중복 토큰 제거
+                const tokensSet = new Set();
+                tokenSnapshot.forEach(doc => {
+                    if (doc.data().token) tokensSet.add(doc.data().token);
+                });
+                const uniqueTokens = Array.from(tokensSet);
 
-                if (baseDateInput) {
-                    const baseDateObj = parseLocalDate(baseDateInput);
-                    baseDateObj.setHours(0, 0, 0, 0);
-                    
-                    // 순수 일수 차이 계산 (05-13 입력 시 오늘 08-21은 100일)
-                    passedDays = Math.round((today - baseDateObj) / (1000 * 60 * 60 * 24));
-
-                    is100Days = (passedDays > 0 && passedDays % 100 === 0);
-                    isAnniversary = (passedDays > 0 && passedDays % 365 === 0);
-                }
-
-               if (isBirthToday || is100Days || isAnniversary) {
-    try {
-        // 💡 import 줄을 지우고 바로 실행합니다.
-        const tokenQuery = query(collection(db, "user_tokens"), where("uid", "==", currentUser.uid));
-        const tokenSnapshot = await getDocs(tokenQuery);
-                        
-                        const tokens = [];
-                        tokenSnapshot.forEach(doc => {
-                            if (doc.data().token) tokens.push(doc.data().token);
+                if (uniqueTokens.length > 0) {
+                    for (const notif of notificationsToSend) {
+                        await fetch('https://ifc-customer-management.vercel.app/api/cron-push', {
+                            method: 'POST',
+                            headers: { 'Content-Type': 'application/json' },
+                            body: JSON.stringify({
+                                tokens: uniqueTokens,
+                                title: notif.title,
+                                body: notif.body
+                            })
                         });
-
-                       if (tokens.length > 0) {
-    let titleText = '';
-    let bodyText = '';
-
-    // 💡 [수정] 우선순위에 따라 단 1개의 알림 문구만 생성
-    if (isBirthToday) {
-        titleText = '🎂 당일 생일 알림';
-        bodyText = `${customerData.name} 고객님의 생일 당일입니다! 🎉`;
-    } else if (isAnniversary) {
-        titleText = '📜 가입 주년 기념 알림';
-        bodyText = `${customerData.name} 고객님의 보험 가입 ${passedDays / 365}주년입니다!`;
-    } else if (is100Days) {
-        titleText = '🎉 가입 D-day 알림';
-        bodyText = `${customerData.name} 고객님의 가입 ${passedDays}일째 되는 날입니다!`;
-    }
-
-    // 조건에 부합하는 타이틀이 있을 때만 1회 호출
-    if (titleText) {
-        await fetch('https://ifc-customer-management.vercel.app/api/cron-push', {
-            method: 'POST',
-            headers: { 'Content-Type': 'application/json' },
-            body: JSON.stringify({
-                tokens: tokens,
-                title: titleText,
-                body: bodyText
-            })
-        });
-    }
-}
-                    } catch (pushErr) {
-                        console.error("오프라인 푸시 서버 전송 실패:", pushErr);
                     }
                 }
-                // ============================================================
+            } catch (pushErr) {
+                console.error("오프라인 푸시 서버 전송 실패:", pushErr);
             }
-            resetFormState();
-            window.switchTab('list');
-        });
+        }
+    }
+    resetFormState();
+    window.switchTab('list');
+});
 
         function getSilsonGeneration(dateStr) {
             if (!dateStr || dateStr === '미입력') return '';
