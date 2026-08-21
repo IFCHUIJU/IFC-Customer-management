@@ -507,8 +507,11 @@ if (editId !== null) {
 
             customers.forEach(c => {
                 const baseDate = parseLocalDate(c.baseDate);
-                // 🌟 5월 13일 입력 시 오늘 딱 100일이 되도록 순수 일수 차이로 변경
-                const passedDays = Math.round((today - baseDate) / (1000 * 60 * 60 * 24));
+                baseDate.setHours(0, 0, 0, 0);
+
+                // 당일부터 1일차 계산 (05/13 ~ 08/21 = 101일차)
+                const diffTime = today.getTime() - baseDate.getTime();
+                const passedDays = Math.floor(diffTime / (1000 * 60 * 60 * 24)) + 1;
 
                 if(c.birthdate && c.birthdate !== '미입력') {
                     const birthMMDD = c.birthdate.substring(5, 10);
@@ -521,10 +524,10 @@ if (editId !== null) {
                     }
                 }
 
+                // 100일 단위 당일 체크 (passedDays % 100 === 0 일 때 또는 100일 차이)
                 let next100Goal = Math.max(100, Math.ceil(passedDays / 100) * 100);
-                if (passedDays === 0) next100Goal = 100;
-
-                const targetDate100 = new Date(baseDate); targetDate100.setDate(baseDate.getDate() + next100Goal);
+                const targetDate100 = new Date(baseDate);
+                targetDate100.setDate(baseDate.getDate() + next100Goal);
                 const remains100 = Math.round((targetDate100 - today) / (1000 * 60 * 60 * 24));
 
                 if (remains100 <= 0 && passedDays > 0) {
@@ -602,25 +605,28 @@ if (editId !== null) {
 
        function calculateDynamicDdays(baseDateStr) {
             const baseDate = parseLocalDate(baseDateStr); 
-            baseDate.setHours(0, 0, 0, 0); // 가입일 시분초 초기화
+            baseDate.setHours(0, 0, 0, 0);
 
             const today = new Date(); 
-            today.setHours(0, 0, 0, 0); // 오늘 날짜 시분초 완전 초기화
+            today.setHours(0, 0, 0, 0);
 
-            // 순수 날짜(일수) 차이 계산 (+1을 더해 당일부터 1일차로 계산)
+            // 순수 날짜 차이 계산 (5월 13일 -> 8월 21일 = 정확히 100일 차이)
             const diffTime = today.getTime() - baseDate.getTime();
-            const passedDays = Math.floor(diffTime / (1000 * 60 * 60 * 24)) + 1;
+            const passedDays = Math.round(diffTime / (1000 * 60 * 60 * 24));
             
-            let next100Goal = Math.max(100, Math.ceil(passedDays / 100) * 100);
+            // 다음 목표 계산 (100일, 200일...)
+            let next100Goal = Math.max(100, Math.ceil((passedDays === 0 ? 1 : passedDays) / 100) * 100);
             
             const targetDate100 = new Date(baseDate); 
-            targetDate100.setDate(baseDate.getDate() + next100Goal - 1);
-            const remains100 = Math.ceil((targetDate100 - today) / (1000 * 60 * 60 * 24));
+            targetDate100.setDate(baseDate.getDate() + next100Goal);
             
-            let nextYearGoal = Math.max(1, Math.ceil(passedDays / 365));
+            // 남은 일수 (D-Day)
+            const remains100 = Math.round((targetDate100 - today) / (1000 * 60 * 60 * 24));
+            
+            let nextYearGoal = Math.max(1, Math.ceil((passedDays === 0 ? 1 : passedDays) / 365));
             const targetDateYear = new Date(baseDate); 
             targetDateYear.setFullYear(baseDate.getFullYear() + nextYearGoal);
-            const remainsYear = Math.ceil((targetDateYear - today) / (1000 * 60 * 60 * 24));
+            const remainsYear = Math.round((targetDateYear - today) / (1000 * 60 * 60 * 24));
 
             const format = (remains, title, targetDate) => {
                 let label = remains > 0 ? `D-${remains}` : (remains === 0 ? '★ 오늘 ★' : '달성');
